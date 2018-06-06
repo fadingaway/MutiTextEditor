@@ -28,6 +28,7 @@ public:
     MyMdi activeMdiWindow();
 
 public slots:
+    /*-----Menu File -----*/
     void NewFile();
     void OpenFile();
     void ReloadFile();
@@ -40,18 +41,34 @@ public slots:
     void CloseAll();
     void CloseOthers();
     void DeleteFromDisk();
-
     void Print();
     void PrintNow();
-
+    void OpenRecentFile(QString fileName);
     void OpenAllRecentFile();
     void ClearRecentHistory();
-
     void Exit();
+    /*-----Menu File -----*/
 
+    /*------Menu Edit-----*/
+    void Undo();
+    void Redo();
     void Copy();
     void Paste();
     void Cut();
+    void Delete();
+    void SelectAll();
+    /*------Menu Edit-----*/
+
+    /*------Menu Search----*/
+    void Find();
+    void FindInFile();
+    void FindNext();
+    void FindPrev();
+    void FindAndReplace();
+    /*------Menu Search----*/
+
+    
+    
 private:
     QMdiArea mdiArea;
 };
