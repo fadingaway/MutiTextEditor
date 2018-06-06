@@ -215,9 +215,16 @@ void MainWindow::CreateMenus()
     
     /*--------Edit Menu Start -------*/
     QMenu *editMenu = menuBar()->addMenu(tr("&Edit"));
-    editMenu->addAction(tr("UnDo"), this, &QTextEdit::undo);
-    
+    editMenu->addAction(tr("UnDo"), this, &MainWindow::Undo, QKeySequence("ctrl + z"));
+    editMenu->addAction(tr("Redo"), this, &MainWindow::Redo, QKeySequence("ctrl + y"));
+    editMenu->addSeparator();
+
+    editMenu->addAction(tr("Cut"), this, &MainWindow::Cut, QKeySequence("ctrl + x"));
+    editMenu->addAction(tr("Copy"), this, &MainWindow::Copy, QKeySequence("ctrl + c"));
+    editMenu->addAction(tr("Paste"), this, &MainWindow::Paste, QKeySequence("ctrl + v"));
+    editMenu->addAction(tr("Delete"), this, &MainWindow::Delete, QKeySequence("Del"));
+    editMenu->addAction(tr("Select All"), this, &MainWindow::SelectAll, QKeySequence("ctrl + a"));
+    editMenu->addSeparator();
+
+
 }
-
-
-
