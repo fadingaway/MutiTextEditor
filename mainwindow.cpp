@@ -83,7 +83,7 @@ void MainWindow::SaveAs()
     UpdateHistory(activeMdiWindow().GetCurrFileName());
 }
 
-MyMdi MainWindow::activeMdiWindow()
+MyMdi MainWindow::GetActiveMdiWindow()
 {
     if(QMdiSubWindow *subWindow = mdiArea.activeSubWindow())
         return qobject_cast<MyMdi *>(subWindow->widget());
@@ -130,6 +130,7 @@ void MainWindow::CreateMenus()
 {
     /*--------File Menu Start -------*/
     QMenu *FileMenu = menuBar()->addMenu(tr("&File"));
+    connect(FileMenu, &QMenu::triggered, this, &MainWindow::RefreshFileMenu);
     QToolBar *toolBar = addToolBar(tr("File"));
 
     QAction *ActionNew = FileMenu->addAction(tr("New"), QKeySequence("ctrl + N"));
@@ -215,16 +216,117 @@ void MainWindow::CreateMenus()
     
     /*--------Edit Menu Start -------*/
     QMenu *editMenu = menuBar()->addMenu(tr("&Edit"));
-    editMenu->addAction(tr("UnDo"), this, &MainWindow::Undo, QKeySequence("ctrl + z"));
-    editMenu->addAction(tr("Redo"), this, &MainWindow::Redo, QKeySequence("ctrl + y"));
+    connect(editMenu, &QMenu::triggered, this, &MainWindow::RefreshEditMenu);
+    ActionUndo = editMenu->addAction(tr("UnDo"), this, &MainWindow::Undo, QKeySequence("ctrl + z"));
+    ActionRedo = editMenu->addAction(tr("Redo"), this, &MainWindow::Redo, QKeySequence("ctrl + y"));
     editMenu->addSeparator();
 
-    editMenu->addAction(tr("Cut"), this, &MainWindow::Cut, QKeySequence("ctrl + x"));
-    editMenu->addAction(tr("Copy"), this, &MainWindow::Copy, QKeySequence("ctrl + c"));
-    editMenu->addAction(tr("Paste"), this, &MainWindow::Paste, QKeySequence("ctrl + v"));
-    editMenu->addAction(tr("Delete"), this, &MainWindow::Delete, QKeySequence("Del"));
+    ActionCut = editMenu->addAction(tr("Cut"), this, &MainWindow::Cut, QKeySequence("ctrl + x"));
+    ActionCopy = editMenu->addAction(tr("Copy"), this, &MainWindow::Copy, QKeySequence("ctrl + c"));
+    ActionPaste = editMenu->addAction(tr("Paste"), this, &MainWindow::Paste, QKeySequence("ctrl + v"));
     editMenu->addAction(tr("Select All"), this, &MainWindow::SelectAll, QKeySequence("ctrl + a"));
     editMenu->addSeparator();
+
+    editMenu->addMenu(tr("Copy to Clipbroad"));
+    editMenu->addMenu(tr("Shrink"));
+    editMenu->addMenu(tr("View Transfer"));
+    editMenu->addMenu(tr("Execute Column"));
+    editMenu->addMenu(tr("Comment"));
+    editMenu->addMenu(tr("Auto Complete"));
+    editMenu->addAction(tr("Clean White Space"));
+    editMenu->addSeparator();
+
+    editMenu->addAction(tr("Column Edit Mode"));
+    editMenu->addSeparator();
+
+    editMenu->addAction(tr("Set as Read Only"));
+    editMenu->addAction(tr("Clear Read Only"));
+    /*--------Edit Menu End -------*/
+
+    /*--------Search Menu Start -------*/
+    QMenu *searchMenu = menuBar()->addMenu(tr("&Search"));
+    connect(searchMenu, &QMenu::triggered, this, &MainWindow::RefreshSearchMenu);
+    searchMenu->addAction(tr("Search"),this, &MainWindow::find, QKeySequence("ctrl + F"));
+    searchMenu->addAction(tr("Search in the file"),this, &MainWindow::find, QKeySequence("ctrl + Shift + F"));
+    searchMenu->addAction(tr("Find Next"),this, &MainWindow::find, QKeySequence("F3"));
+    searchMenu->addAction(tr("Find Previous"),this, &MainWindow::find, QKeySequence("Shift + F3"));
+    searchMenu->addAction(tr("Quick Find Next"),this, &MainWindow::find, QKeySequence("ctrl + F3"));
+    searchMenu->addAction(tr("Quick Find Previous"),this, &MainWindow::find, QKeySequence("ctrl + Shift + F3"));
+    searchMenu->addAction(tr("Replace"),this, &MainWindow::find, QKeySequence("ctrl + H"));
+    searchMenu->addAction(tr("Special Research"),this, &MainWindow::find, QKeySequence("ctrl + Alt + I"));
+    searchMenu->addAction(tr("Column Locate"),this, &MainWindow::find, QKeySequence("ctrl + G"));
+    searchMenu->addAction(tr("Locate pair brace"),this, &MainWindow::find, QKeySequence("ctrl + B"));
+    editMenu->addSeparator();
+
+    editMenu->addMenu(tr("Mark All"));
+    editMenu->addMenu(tr("Cancel Mark"));
+    editMenu->addSeparator();
+
+    searchMenu->addAction(tr("Set/Cancel Note"));
+    searchMenu->addAction(tr("Next Note"));
+    searchMenu->addAction(tr("Previous Note"));
+    searchMenu->addAction(tr("Clear All Note"));
+    searchMenu->addAction(tr("Cut Note"));
+    searchMenu->addAction(tr("Copy Note"));
+    searchMenu->addAction(tr("Paste(Replace) Note"));
+    searchMenu->addAction(tr("Delete Note"));
+
+}
+
+void MainWindow::Undo()
+{
+    GetActiveMdiWindow().document()->undo();
+}
+
+void MainWindow::Redo()
+{
+    GetActiveMdiWindow().document()->redo();
+}
+
+void MainWindow::Copy()
+{
+    GetActiveMdiWindow().copy();
+}
+
+void MainWindow::Paste()
+{
+    GetActiveMdiWindow().paste();
+}
+
+void MainWindow::Cut()
+{
+    GetActiveMdiWindow().cut();
+}
+
+void MainWindow::SelectAll()
+{
+    GetActiveMdiWindow().selectAll();
+}
+
+void MainWindow::RefreshFileMenu()
+{
+    if(GetActiveMdiWindow().IsUntitled)
+    {
+        if(!GetActiveMdiWindow().document()->isModified())
+        {
+            ActionSave->setEnabled(false);
+            ActionSaveAll->setEnabled(false);
+            ActionRename->setEnabled(false);
+            ActionDeleteFile->setEnabled(false);
+        }
+        else
+        {
+            ActionSave->setEnabled(true);
+            ActionSaveAll->setEnabled(true);
+        }
+    }
+    else
+    {
+        ActionSave->setEnabled(true);
+        ActionSaveAll->setEnabled(true);
+        ActionRename->setEnabled(true);
+        ActionDeleteFile->setEnabled(true);
+    }
 
 
 }

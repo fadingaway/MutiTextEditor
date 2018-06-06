@@ -6,6 +6,9 @@
 #include "QTextEdit"
 #include "QPushButton"
 #include "QCloseEvent"
+#include "QPrintDialog"
+#include "QPrinter"
+
 bool MyMdi::NewFile()
 {
     IsUntitled = true;
@@ -122,4 +125,19 @@ void MyMdi::closeEvent(QCloseEvent *event)
 QString MyMdi::GetCurrFileName()
 {
     return CurrentFileName;
+}
+
+void MyMdi::SetCurrFileName(QString fileName)
+{
+    CurrFileName = fileName;
+}
+
+void MyMdi::Print()
+{
+    QPrinter printer;
+    QPrintDialog printDialog(&printer, this);
+    if(printDialog == QPrintDialog::Accepted)
+    {
+        print(&printer);
+    }
 }

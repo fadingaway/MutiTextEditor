@@ -25,10 +25,11 @@ public:
     QStringList ReadHistory();
     void UpdateHistory(QString fileName);
     MyMdi createSubWindow();
-    MyMdi activeMdiWindow();
+    MyMdi GetActiveMdiWindow();
 
 public slots:
     /*-----Menu File -----*/
+    void RefreshFileMenu();
     void NewFile();
     void OpenFile();
     void ReloadFile();
@@ -50,16 +51,17 @@ public slots:
     /*-----Menu File -----*/
 
     /*------Menu Edit-----*/
+    void RefreshEditMenu();
     void Undo();
     void Redo();
     void Copy();
     void Paste();
     void Cut();
-    void Delete();
     void SelectAll();
     /*------Menu Edit-----*/
 
     /*------Menu Search----*/
+    void RefreshSearchMenu();
     void Find();
     void FindInFile();
     void FindNext();
@@ -71,6 +73,21 @@ public slots:
     
 private:
     QMdiArea mdiArea;
+    QAction *ActionNew;
+    QAction *ActionOpen;
+    QAction *ActionReload;
+    QAction *ActionSave;
+    QAction *ActionSaveCopy;
+    QAction *ActionSaveAll;
+    QAction *ActionRename;
+    QAction *ActionDeleteFile;
+
+    QAction *ActionUndo;
+    QAction *ActionRedo;
+    QAction *ActionCut;
+    QAction *ActionCopy;
+    QAction *ActionPaste;
+
 };
 
 #endif // MAINWINDOW_H

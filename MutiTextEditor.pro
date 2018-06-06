@@ -1,4 +1,5 @@
 QT += widgets
+QT += printsupport
 
 HEADERS += \
     mainwindow.h \

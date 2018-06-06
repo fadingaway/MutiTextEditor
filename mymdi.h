@@ -3,15 +3,12 @@
 
 #include "QMdiArea"
 #include "QTextEdit"
-
+class QPrinter;
 class MyMdi: public QTextEdit
 {
     Q_OBJECT
 private slots:
     void fileModified();
-
-public:
-    MyMdi();
     bool NewFile();
     bool OpenFile();
     bool Save();
@@ -19,7 +16,12 @@ public:
     bool SaveFile(QString fileName);
     bool LoadFile(QString filename);
     void closeEvent(QCloseEvent *event);
+    void Print();
+
+public:
+    MyMdi();
     QString GetCurrFileName();
+    void SetCurrFileName(QString fileName);
 private:
     QString CurrFileName;
     QString CurrFilePath;
