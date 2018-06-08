@@ -17,11 +17,14 @@ private slots:
     bool LoadFile(QString filename);
     void closeEvent(QCloseEvent *event);
     void Print();
-
+    bool CopySaveAs();
+    bool RenameFile();
 public:
     MyMdi();
     QString GetCurrFileName();
     void SetCurrFileName(QString fileName);
+    bool GetSaveStatus();
+    bool GetIsUntitled();
 private:
     QString CurrFileName;
     QString CurrFilePath;

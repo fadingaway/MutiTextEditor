@@ -76,6 +76,20 @@ bool MyMdi::SaveAs()
     return true;
 }
 
+bool MyMdi::CopySaveAs()
+{
+    QString *fileName = QFileDialog::getSaveFileName(this, tr("Save As"), CurrFilePath, tr("Text Document(*.txt)"));
+    QFile out(fileName);
+    if(!out.open(QIODevice::WriteOnly|QIODevice::Text))
+    {
+        QMessageBox::warning(this, tr("Error"), tr("Save File Error"));
+        return false;
+    }
+    QTextStream outStream(&out);
+    outStream<< document()->toPlainText();
+    return true;
+}
+
 bool MyMdi::SaveFile(QString fileName)
 {
     QFile out(fileName);
@@ -140,4 +154,19 @@ void MyMdi::Print()
     {
         print(&printer);
     }
+}
+
+bool MyMdi::GetSaveStatus()
+{
+    return IsFileSaved;
+}
+bool MyMdi::GetIsUntitled()
+{
+    return IsUntitled;
+}
+bool MyMdi::RenameFile()
+{
+    QString newFileName = QFileDialog::getSaveFileName(this, tr("Save As"), CurrFilePath, tr("Text Document(*.txt)"));
+    QFile del(&CurrFileName);
+    return del.rename(CurrFileName, newFileName);
 }

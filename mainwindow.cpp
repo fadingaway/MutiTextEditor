@@ -10,6 +10,7 @@
 #include "QCoreApplication"
 #include "QToolBar"
 #include "QTabBar"
+#include "QClipboard"
 
 MainWindow::MainWindow(QWidget *parent) : mdiArea(new QMdiArea)
 {
@@ -22,7 +23,15 @@ MainWindow::MainWindow(QWidget *parent) : mdiArea(new QMdiArea)
     createStatusBar();
     setWindowTitle(tr("Muti-Text Document Editor"));
 }
+MyMdi MainWindow::createSubWindow()
+{
+    MyMdi *child = new MyMdi();
+    mdiArea.addSubWindow(child);
 
+    connect(child, &QTextEdit::copyAvailable, this, &MainWindow::Copy);
+    connect(child, &QTextEdit::copyAvailable, this, &MainWindow::Cut);
+    return child;
+}
 void MainWindow::NewFile()
 {
     MyMdi *child = createSubWindow();
@@ -57,14 +66,33 @@ void MainWindow::OpenFile()
     }
 }
 
-MyMdi MainWindow::createSubWindow()
+void MainWindow::ReloadFile()
 {
-    MyMdi *child = new MyMdi();
-    mdiArea.addSubWindow(child);
+    MyMdi *mymdi = GetActiveMdiWindow();
+    if(mymdi->GetIsUntitled()||mymdi->GetSaveStatus())
+    {
+        QMessageBox::standardButton ret = QMessageBox::warning(tr("Warning"),
+                             tr("File has been changed, do you want to save the file?"),
+                             QMessageBox::Save|QMessageBox::Discard|QMessageBox::Cancel);
+        if(ret = QMessageBox::Save)
+        {
+            mymdi->SaveAs();
+        }
+        else if(ret = QMessageBox::Discard)
+        {
+            mymdi->LoadFile(mymdi->GetCurrFileName());
+        }
+    }
+    else
+    {
+        mymdi->LoadFile(mymdi->GetCurrFileName());
+    }
+}
 
-    connect(child, &QTextEdit::copyAvailable, this, &MainWindow::Copy);
-    connect(child, &QTextEdit::copyAvailable, this, &MainWindow::Cut);
-    return child;
+void MainWindow::SaveAsCopy()
+{
+
+    GetActiveMdiWindow().CopySaveAs();
 }
 
 void MainWindow::Save()
@@ -83,12 +111,48 @@ void MainWindow::SaveAs()
     UpdateHistory(activeMdiWindow().GetCurrFileName());
 }
 
+void MainWindow::SaveAll()
+{
+    QList<QMdiSubWindow *> subWindowList = mdiArea.subWindowList();
+    for(int i = 0; i< subWindowList.size(); i++)
+    {
+        subWindowList[i]->activateWindow();
+        GetActiveMdiWindow().Save();
+    }
+}
+
+void MainWindow::RenameFile()
+{
+    GetActiveMdiWindow().RenameFile();
+}
+
+void MainWindow::Close()
+{
+    mdiArea.closeActiveSubWindow();
+}
+
+void MainWindow::CloseAll()
+{
+    mdiArea.closeAllSubWindows();
+}
+
+void MainWindow::CloseOthers()
+{
+    QMdiSubWindow subwindow = GetActiveMdiWindow();
+    mdiArea.closeAllSubWindows();
+    mdiArea.addSubWindow(subwindow);
+    mdiArea.show();
+}
+
+
+
 MyMdi MainWindow::GetActiveMdiWindow()
 {
     if(QMdiSubWindow *subWindow = mdiArea.activeSubWindow())
         return qobject_cast<MyMdi *>(subWindow->widget());
     return 0;
 }
+
 const static QString RECENT_FILE_KEY = "Recent File History";
 QStringList MainWindow::ReadHistory()
 {
@@ -329,4 +393,15 @@ void MainWindow::RefreshFileMenu()
     }
 
 
+
 }
+
+
+
+
+
+
+
+
+
+

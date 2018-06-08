@@ -33,7 +33,7 @@ public slots:
     void NewFile();
     void OpenFile();
     void ReloadFile();
-    void SaveCopyText();
+    void SaveAsCopy();
     void Save();
     void SaveAs();
     void SaveAll();
