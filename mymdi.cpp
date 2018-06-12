@@ -8,6 +8,10 @@
 #include "QCloseEvent"
 #include "QPrintDialog"
 #include "QPrinter"
+MyMdi::MyMdi()
+{
+    setAttribute(Qt::WA_DeleteOnClose);
+}
 
 bool MyMdi::NewFile()
 {
@@ -19,21 +23,23 @@ bool MyMdi::NewFile()
     return true;
 }
 
-MyMdi::MyMdi()
+bool MyMdi::OpenFile( QString fileName = null)
 {
-    setAttribute(Qt::WA_DeleteOnClose);
-}
-
-bool MyMdi::OpenFile()
-{
-    CurrFileName = QFileDialog::getOpenFileName(this);
-    if(!CurrFileName.isEmpty())
+    if(fileName.isEmpty())
     {
-        return LoadFile(CurrFileName);
+        CurrFileName = QFileDialog::getOpenFileName(this);
+        if(!CurrFileName.isEmpty())
+        {
+            return LoadFile(CurrFileName);
+        }
+        else
+        {
+            return false;
+        }
     }
     else
     {
-        return false;
+        LoadFile(fileName);
     }
 }
 

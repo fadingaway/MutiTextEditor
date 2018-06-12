@@ -31,7 +31,7 @@ public slots:
     /*-----Menu File -----*/
     void RefreshFileMenu();
     void NewFile();
-    void OpenFile();
+    void OpenFile(QString fileName = null);
     void ReloadFile();
     void SaveAsCopy();
     void Save();
@@ -61,7 +61,6 @@ public slots:
     /*------Menu Edit-----*/
 
     /*------Menu Search----*/
-    void RefreshSearchMenu();
     void Find();
     void FindInFile();
     void FindNext();
@@ -87,7 +86,6 @@ private:
     QAction *ActionCut;
     QAction *ActionCopy;
     QAction *ActionPaste;
-
 };
 
 #endif // MAINWINDOW_H

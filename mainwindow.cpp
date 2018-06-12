@@ -39,10 +39,35 @@ void MainWindow::NewFile()
     child->show();
 }
 
-void MainWindow::OpenFile()
+void MainWindow::OpenFile(QString fileName = null)
 {
-    QString fileName = QFileDialog::getOpenFileName(this);
-    if(!fileName.isEmpty())
+    if(fileName.isEmpty())
+    {
+        fileName = QFileDialog::getOpenFileName(this);
+        if(!fileName.isEmpty())
+        {
+            QMdiSubWindow *existSubWindow = FindChildSubWindow(fileName);
+            if(existSubWindow)
+            {
+                mdiArea.setActiveSubWindow(existSubWindow);
+            }
+            else
+            {
+                MyMdi *child = createSubWindow();
+                if(child->LoadFile(fileName))
+                {
+                    child->show();
+                    child->setWindowTitle(fileName);
+                    UpdateHistory(fileName);
+                }
+                else
+                {
+                    child->close();
+                }
+            }
+        }
+    }
+    else
     {
         QMdiSubWindow *existSubWindow = FindChildSubWindow(fileName);
         if(existSubWindow)
@@ -144,6 +169,94 @@ void MainWindow::CloseOthers()
     mdiArea.show();
 }
 
+void MainWindow::DeleteFromDisk()
+{
+    QFile in(GetActiveMdiWindow().GetCurrFileName());
+    if(in.remove())
+    {
+        mdiArea.closeActiveSubWindow();
+        setStatusTip(tr("File Delete!"));
+    }
+    else
+    {
+        QMessageBox::warning(this,
+                             tr("File Delete Error"),
+                             tr("Fail to Delete File :%1").arg(in.errorString()));
+    }
+}
+
+void MainWindow::Print()
+{
+    GetActiveMdiWindow().Print();
+}
+
+void MainWindow::PrintNow()
+{
+    GetActiveMdiWindow().Print();
+}
+
+void MainWindow::OpenRecentFile(QString fileName)
+{
+    OpenFile(fileName);
+}
+
+void MainWindow::OpenAllRecentFile()
+{
+    QStringList fileList = ReadHistory();
+    if(!fileList.isEmpty())
+    {
+        for(int i = 0; i<fileList.size(); i++)
+        {
+            OpenFile(fileList.at(i));
+        }
+    }
+}
+
+void MainWindow::ClearRecentHistory()
+{
+    QSettings settings(QCoreApplication::organizationName(), QCoreApplication::applicationName());
+    settings.remove(RENCENT_FILE_KEY);
+}
+
+void MainWindow::Exit()
+{
+    for(int i = 0; i<mdiArea.size(); i++)
+    {
+        mdiArea.activeSubWindow();
+        QString fileName = GetActiveMdiWindow().GetCurrFileName();
+        UpdateHistory(fileName);
+        GetActiveMdiWindow().close();
+    }
+}
+
+void MainWindow::RefreshFileMenu()
+{
+    if(GetActiveMdiWindow().IsUntitled)
+    {
+        if(!GetActiveMdiWindow().document()->isModified())
+        {
+            ActionSave->setEnabled(false);
+            ActionSaveAll->setEnabled(false);
+            ActionRename->setEnabled(false);
+            ActionDeleteFile->setEnabled(false);
+        }
+        else
+        {
+            ActionSave->setEnabled(true);
+            ActionSaveAll->setEnabled(true);
+        }
+    }
+    else
+    {
+        ActionSave->setEnabled(true);
+        ActionSaveAll->setEnabled(true);
+        ActionRename->setEnabled(true);
+        ActionDeleteFile->setEnabled(true);
+    }
+
+
+
+}
 
 
 MyMdi MainWindow::GetActiveMdiWindow()
@@ -181,7 +294,7 @@ void MainWindow::UpdateHistory(QString fileName)
         oldFileList.removeAll(fileName);
         oldFileList.append(fileName);
     }
-
+    settings.beginWriteArray(RECENT_FILE_KEY);
     for (int i = 0; i<oldFileList.size(); i++)
     {
         settings.setArrayIndex(i);
@@ -367,40 +480,44 @@ void MainWindow::SelectAll()
     GetActiveMdiWindow().selectAll();
 }
 
-void MainWindow::RefreshFileMenu()
+void MainWindow::RefreshEditMenu()
 {
-    if(GetActiveMdiWindow().IsUntitled)
+    MyMdi *subWindow = GetActiveMdiWindow();
+    if(subWindow->document()->isRedoAvailable())
+        ActionRedo->setEnabled(true);
+    else
+        ActionRedo->setEnabled(false);
+
+    if(subWindow->document()->isUndoAvailable())
+       ActionUndo->setEnabled(true);
+    else
+        ActionUndo->setEnabled(false);
+
+    if(subWindow&&subWindow->textCursor().hasSelection())
     {
-        if(!GetActiveMdiWindow().document()->isModified())
-        {
-            ActionSave->setEnabled(false);
-            ActionSaveAll->setEnabled(false);
-            ActionRename->setEnabled(false);
-            ActionDeleteFile->setEnabled(false);
-        }
-        else
-        {
-            ActionSave->setEnabled(true);
-            ActionSaveAll->setEnabled(true);
-        }
+        ActionCopy->setEnabled(true);
+        ActionCut->setEnabled(true);
     }
     else
     {
-        ActionSave->setEnabled(true);
-        ActionSaveAll->setEnabled(true);
-        ActionRename->setEnabled(true);
-        ActionDeleteFile->setEnabled(true);
+        ActionCopy->setEnabled(false);
+        ActionCut->setEnabled(false);
     }
 
-
-
+    if(subWindow->canPaste())
+    {
+        ActionPaste->setEnabled(true);
+    }
+    else
+    {
+        ActionPaste->setEnabled(false);
+    }
 }
 
-
-
-
-
-
+void MainWindow::Find()
+{
+    GetActiveMdiWindow().document()->find()
+}
 
 
 
