@@ -5,6 +5,8 @@
 #include <QWidget>
 #include "QMdiSubWindow"
 #include "QMdiArea"
+#include "QMouseEvent"
+class QMouseEvent;
 class QMdiArea;
 class QMdiSubWindow;
 class MyMdi;
@@ -26,6 +28,7 @@ public:
     void UpdateHistory(QString fileName);
     MyMdi createSubWindow();
     MyMdi GetActiveMdiWindow();
+    void mouseDoubleClickEvent(QMouseEvent *event);
 
 public slots:
     /*-----Menu File -----*/
@@ -34,6 +37,7 @@ public slots:
     void OpenFile(QString fileName = null);
     void ReloadFile();
     void SaveAsCopy();
+    void SaveCopyText();
     void Save();
     void SaveAs();
     void SaveAll();
@@ -86,6 +90,11 @@ private:
     QAction *ActionCut;
     QAction *ActionCopy;
     QAction *ActionPaste;
+    enum TabInd{
+        tabFind = 0,
+        tabReplace = 1,
+        tabFile = 2
+    };
 };
 
 #endif // MAINWINDOW_H

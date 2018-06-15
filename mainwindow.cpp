@@ -513,12 +513,37 @@ void MainWindow::RefreshEditMenu()
         ActionPaste->setEnabled(false);
     }
 }
+void MainWindow::mouseDoubleClickEvent(QMouseEvent *event)
+{
+
+}
 
 void MainWindow::Find()
 {
-    GetActiveMdiWindow().document()->find()
+    TabDialog *dialog = new TabDialog("abc",tabFind, this);
+    dialog->setFixedSize(480,320);
+    dialog->setWindowIcon(QIcon(QPixmap(0,0)));
+    dialog->show();
 }
 
+void MainWindow::FindInFile()
+{
+    TabDialog *dialog = new TabDialog("abc",tabFile, this);
+    dialog->setFixedSize(480,320);
+    dialog->setWindowIcon(QIcon(QPixmap(0,0)));
+    dialog->show();
+}
 
+void MainWindow::FindAndReplace()
+{
+    TabDialog *dialog = new TabDialog("abc",tabReplace, this);
+    dialog->setFixedSize(480,320);
+    dialog->setWindowIcon(QIcon(QPixmap(0,0)));
+    dialog->show();
+}
 
+void MainWindow::FindNext()
+{
+    GetActiveMdiWindow().document()->
+}
 
