@@ -72,8 +72,8 @@ public slots:
     void FindAndReplace();
     /*------Menu Search----*/
 
-    
-    
+    void setTextColor();
+    void unSetTextColor();
 private:
     QMdiArea mdiArea;
     QAction *ActionNew;
@@ -90,6 +90,10 @@ private:
     QAction *ActionCut;
     QAction *ActionCopy;
     QAction *ActionPaste;
+    QTextDocument *document;
+    QString searchString = 0;
+    QString prevSearchString = 0;
+
     enum TabInd{
         tabFind = 0,
         tabReplace = 1,

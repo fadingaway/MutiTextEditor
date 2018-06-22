@@ -22,6 +22,7 @@ MainWindow::MainWindow(QWidget *parent) : mdiArea(new QMdiArea)
     CreateMenus();
     createStatusBar();
     setWindowTitle(tr("Muti-Text Document Editor"));
+
 }
 MyMdi MainWindow::createSubWindow()
 {
@@ -515,6 +516,7 @@ void MainWindow::RefreshEditMenu()
 }
 void MainWindow::mouseDoubleClickEvent(QMouseEvent *event)
 {
+    QMainWindow::mouseDoubleClickEvent(event);
 
 }
 
