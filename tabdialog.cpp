@@ -12,7 +12,7 @@
 #include "QPixmap"
 #include "QComboBox"
 #include "QRadioButton"
-
+#include "tabdialog.h"
 
 TabDialog::TabDialog(QString searchString, int tabIndex, QWidget *parent):QDialog(parent)
 {

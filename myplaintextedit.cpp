@@ -57,7 +57,7 @@ void MyPlainTextEdit::paintEvent(QPaintEvent *e)
     QPlainTextEdit::paintEvent(e);
     QPainter painter(viewport());
     painter.setPen(Qt::black);
-    int lastLineY = this->blockCount() * blockBoundingGeometry(document()->firstBlock()).height();
+    int lastLineY = this->blockCount() * blockBoundingGeometry(textDocument()->firstBlock()).height();
 
     for(int i = 0; i< lineList.size(); i++)
     {

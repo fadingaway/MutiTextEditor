@@ -9,32 +9,39 @@
 class QMouseEvent;
 class QMdiArea;
 class QMdiSubWindow;
+class QTextDocument;
 class MyMdi;
 class MainWindow : public QMainWindow
 {
     Q_OBJECT
+    Q_PROPERTY(int mdiWindowCnt READ GetmdiWindowCnt WRITE SetmdiWindowCnt NOTIFY mdiWindowCntChanged)
 public:
     explicit MainWindow(QWidget *parent = 0);
     void UpdateMenus();
     void CreateMenus();
     void CreateAction();
-    void FindChildSubWindow(QString filename);
-    void ReadSetting();
-    void WriteSetting();
-    void showRecent();
-    void closeEvent();
+    MyMdi *FindChildSubWindow(QString filename);
+    //void ReadSetting();
+    //void WriteSetting();
+    //void showRecent();
+    //void closeEvent();
     void createStatusBar();
     QStringList ReadHistory();
     void UpdateHistory(QString fileName);
-    MyMdi createSubWindow();
-    MyMdi GetActiveMdiWindow();
+    MyMdi *createSubWindow();
+    MyMdi *GetActiveMdiWindow();
     void mouseDoubleClickEvent(QMouseEvent *event);
-
+    void SetmdiWindowCnt(int windowCount);
+    int GetmdiWindowCnt();
+signals:
+    void mdiWindowCntChanged();
 public slots:
+    void createDefaultMdiWindow();
     /*-----Menu File -----*/
     void RefreshFileMenu();
     void NewFile();
-    void OpenFile(QString fileName = null);
+    void OpenFile();
+    void Openfile(QString fileName = 0);
     void ReloadFile();
     void SaveAsCopy();
     void SaveCopyText();
@@ -48,7 +55,7 @@ public slots:
     void DeleteFromDisk();
     void Print();
     void PrintNow();
-    void OpenRecentFile(QString fileName);
+    void OpenRecentFile(QString fileName = 0);
     void OpenAllRecentFile();
     void ClearRecentHistory();
     void Exit();
@@ -70,27 +77,40 @@ public slots:
     void FindNext();
     void FindPrev();
     void FindAndReplace();
+    void ColumnLocate();
+    //void LocateBrace();
     /*------Menu Search----*/
 
     void setTextColor();
     void unSetTextColor();
+    void gotoLine(int lineNo);
 private:
     QMdiArea mdiArea;
+    int totalMdiWindowCnt = 0;
     QAction *ActionNew;
     QAction *ActionOpen;
     QAction *ActionReload;
     QAction *ActionSave;
+    QAction *ActionSaveAs;
     QAction *ActionSaveCopy;
     QAction *ActionSaveAll;
     QAction *ActionRename;
     QAction *ActionDeleteFile;
+    QAction *ActionCloseOtherFiles;
+    QAction *ActionCloseAllFile;
+    QAction *ActionCloseFile;
+
+    QAction *ActionPrint;
+    QAction *ActionPrintNow;
+    QAction *ActionExit;
 
     QAction *ActionUndo;
     QAction *ActionRedo;
     QAction *ActionCut;
     QAction *ActionCopy;
     QAction *ActionPaste;
-    QTextDocument *document;
+    QAction *ActionSelectAll;
+
     QString searchString = 0;
     QString prevSearchString = 0;
 

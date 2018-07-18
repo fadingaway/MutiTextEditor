@@ -6,6 +6,8 @@
 #include "QTextDocument"
 #include "QTextCursor"
 #include "QDockWidget"
+#include "QObject"
+
 QT_BEGIN_NAMESPACE
 class QPrinter;
 class QPaintEvent;
@@ -20,10 +22,10 @@ class LineNumberArea;
 class MyMdi: public QPlainTextEdit
 {
     Q_OBJECT
-private slots:
+public slots:
     void fileModified();
     bool NewFile();
-    bool OpenFile();
+    bool OpenFile(QString fileName = 0);
     bool Save();
     bool SaveAs();
     bool SaveFile(QString fileName);
@@ -35,35 +37,39 @@ private slots:
     void setTextColor();
     void unSetTextColor();
     void updateLineNumberWidth(int newBlockCount);
-    void highlightCurrentLine();
     void updateLineNumberArea(const QRect &, int);
+    void highlightCurrentLine();
+    void resizeEvent(QResizeEvent *e);
+
 public:
-    MyMdi(QWidget *parent = 0);
+    explicit MyMdi(QWidget *parent = 0);
     QString GetCurrFileName();
     void SetCurrFileName(QString fileName);
     bool GetSaveStatus();
     bool GetIsUntitled();
-    void Find(QString searchString,FindFlags options = FindFlags());
     int GetTotalCount();
-    void FindNext(QString searchString,FindFlags options = FindFlags());
     void lineNumberPaintEvent(QPaintEvent *event);
     int lineNumberWidth();
     void MarkLines(QList<QPoint> lineHolder);
     void highlightSearchString(QString searchString);
     void clearMark();
-    void createSearchDockWidget(QString searchString);
-private:
+    QList<int> searchCurrentFile(QString searchString);
+
     QString CurrFileName;
     QString CurrFilePath;
     bool IsUntitled;
     bool IsFileSaved;
-    QTextDocument *document;
+    QTextDocument *textDocument;
     QString searchString = 0;
     QString prevSearchString = 0;
     bool isFirstSearch = true;
-    QTextCursor textCursor;
+    QTextCursor textcursor;
     int totalCount = 0;
-    QWidget *LineNumberArea;
+    QWidget *lineNumberArea;
+
+    QList<int> Find(QString searchString,QTextDocument::FindFlag options);
+
+    void FindNext(QString searchString,QTextDocument::FindFlag options);
 };
 
 class LineNumberArea:public QWidget
