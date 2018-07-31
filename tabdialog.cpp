@@ -13,9 +13,12 @@
 #include "QComboBox"
 #include "QRadioButton"
 #include "tabdialog.h"
-
+#include "QDebug"
+#include "QThread"
+#include "QApplication"
 TabDialog::TabDialog(QString searchString, int tabIndex, QWidget *parent):QDialog(parent)
 {
+    qDebug()<<"TabDialog::TabDialog";
     tabWidget = new QTabWidget;
     FindTab *findTab = new FindTab(searchString);
     ReplaceTab *findTab1 = new ReplaceTab(searchString);
@@ -26,15 +29,20 @@ TabDialog::TabDialog(QString searchString, int tabIndex, QWidget *parent):QDialo
 
     connect(tabWidget,SIGNAL(currentChanged(int)),this, SLOT(updateWindowTitle(int)));
 
+    connect(findTab, SIGNAL(notifyTabWidget(int)), this,SLOT(setTabAlpha(int)));
+
     QVBoxLayout *mainLayout = new QVBoxLayout;
     mainLayout->addWidget(tabWidget);
     mainLayout->setMargin(1);
     setLayout(mainLayout);
     updateWindowTitle(tabIndex);
+    setFocusPolicy(Qt::ClickFocus);
+
 }
 
 void TabDialog::updateWindowTitle(int tab_Id = 0)
 {
+    qDebug()<<"TabDialog::updateWindowTitle";
     if(tab_Id == 0)
     {
         setWindowTitle("Find");
@@ -49,8 +57,42 @@ void TabDialog::updateWindowTitle(int tab_Id = 0)
     }
 }
 
+void TabDialog::setTabAlpha(int value)
+{
+    qDebug()<<"TabDialog::setTabAlpha";
+    double alpha = (double)value/100;
+    if(alpha < 0.1)
+    {
+        alpha = 0.1;
+    }
+    currentAlpa = alpha;
+    this->setWindowOpacity(1-currentAlpa);
+}
+
+void FindTab::valueChange(int value)
+{
+    qDebug()<<"FindTab::valueChange";
+    emit notifyTabWidget(value);
+}
+
+void TabDialog::focusInEvent(QFocusEvent *e)
+{
+    qDebug()<<"TabDialog::focusInEvent";
+    qDebug()<<currentAlpa;
+    this->setWindowOpacity(1 - (double)currentAlpa/100);
+    QDialog::focusInEvent(e);
+}
+
+void TabDialog::focusOutEvent(QFocusEvent *e)
+{
+    qDebug()<<"TabDialog::focusOutEvent";
+    this->setWindowOpacity((double)currentAlpa/100);
+    QDialog::focusOutEvent(e);
+}
+
 FindTab::FindTab(QString searchString)
 {
+    qDebug()<<"FindTab::FindTab";
     QVBoxLayout *wholeScreenLayout = new QVBoxLayout();
 
     QHBoxLayout *wholeScreenLayout_up = new QHBoxLayout();
@@ -123,7 +165,8 @@ FindTab::FindTab(QString searchString)
 
     QGroupBox *searchModeGroup = new QGroupBox(tr("Search Mode"));
     QVBoxLayout *searchModeLayout = new QVBoxLayout();
-    QRadioButton *buttonNormal = new QRadioButton(tr("normal"));
+    QRadioButton *buttonNormal = new QRadioButton(tr("Normal"));
+    buttonNormal->setChecked(true);
     QRadioButton *buttonExtension = new QRadioButton(tr("Extension"));
     QRadioButton *buttonRegExp = new QRadioButton(tr("Reg Exp"));
     searchModeLayout->addWidget(buttonNormal);
@@ -137,6 +180,7 @@ FindTab::FindTab(QString searchString)
     QVBoxLayout *directionLayout = new QVBoxLayout();
     QRadioButton *buttonUp = new QRadioButton(tr("Up"));
     QRadioButton *buttonDown = new QRadioButton(tr("Down"));
+    buttonDown->setChecked(true);
     directionLayout->addWidget(buttonUp);
     directionLayout->addWidget(buttonDown);
     directionGroup->setLayout(directionLayout);
@@ -145,10 +189,14 @@ FindTab::FindTab(QString searchString)
 
 
     QGroupBox *AlphaGroup = new QGroupBox(tr("Alpha"));
+    AlphaGroup->setChecked(true);
     QVBoxLayout *alphaLayout = new QVBoxLayout();
     QRadioButton *buttonAlphaLoseFocus = new QRadioButton(tr("After lose focus"));
     QRadioButton *buttonAlphaAlways = new QRadioButton(tr("Alaways"));
+    buttonAlphaAlways->setChecked(true);
     QSlider *alphaSlider = new QSlider(Qt::Horizontal);
+    connect(alphaSlider, SIGNAL(valueChanged(int)),this, SLOT(valueChange(int)));
+    alphaSlider->setMaximum(80);
     alphaLayout->addWidget(buttonAlphaLoseFocus);
     alphaLayout->addWidget(buttonAlphaAlways);
     alphaLayout->addWidget(alphaSlider);
@@ -191,6 +239,7 @@ FindTab::FindTab(QString searchString)
 
 ReplaceTab::ReplaceTab(QString searchString)
 {
+    qDebug()<<"ReplaceTab::ReplaceTab";
     QVBoxLayout *wholeScreenLayout = new QVBoxLayout();
 
     QHBoxLayout *wholeScreenLayout_middle = new QHBoxLayout();
@@ -356,7 +405,7 @@ ReplaceTab::ReplaceTab(QString searchString)
 
 DocumentSearchTab::DocumentSearchTab(QString searchString)
 {
-
+    qDebug()<<"DocumentSearchTab::DocumentSearchTab";
     QVBoxLayout *wholeScreenLayout = new QVBoxLayout();
 
     QHBoxLayout *wholeScreenLayout_middle = new QHBoxLayout();
@@ -505,3 +554,4 @@ DocumentSearchTab::DocumentSearchTab(QString searchString)
     wholeScreenLayout->addStretch(1);
     setLayout(wholeScreenLayout);
 }
+

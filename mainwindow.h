@@ -6,11 +6,14 @@
 #include "QMdiSubWindow"
 #include "QMdiArea"
 #include "QMouseEvent"
+#include "QSignalMapper"
+class TabDialog;
 class QMouseEvent;
 class QMdiArea;
 class QMdiSubWindow;
 class QTextDocument;
 class MyMdi;
+class QSignalMapper;
 class MainWindow : public QMainWindow
 {
     Q_OBJECT
@@ -110,15 +113,19 @@ private:
     QAction *ActionCopy;
     QAction *ActionPaste;
     QAction *ActionSelectAll;
+    QAction *historyAction;
 
     QString searchString = 0;
     QString prevSearchString = 0;
+    QSignalMapper *mapper;
 
     enum TabInd{
         tabFind = 0,
         tabReplace = 1,
         tabFile = 2
     };
+public:
+    TabDialog *dialog;
 };
 
 #endif // MAINWINDOW_H

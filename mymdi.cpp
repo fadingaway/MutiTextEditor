@@ -22,6 +22,7 @@ MyMdi::MyMdi(QWidget *parent):QPlainTextEdit(parent)
     connect(this, SIGNAL(blockCountChanged(int)), this, SLOT(updateLineNumberWidth(int)));
     connect(this, SIGNAL(updateRequest(QRect,int)), this, SLOT(updateLineNumberArea(QRect,int)));
     connect(this, SIGNAL(cursorPositionChanged()), this, SLOT(highlightCurrentLine()));
+    connect(this, &MyMdi::textChanged, this,&MyMdi::fileModified);
 
     setAccessibleName(CurrFileName);
     updateLineNumberWidth(0);
@@ -53,7 +54,7 @@ int MyMdi::lineNumberWidth()
         max /= 10;
         ++ digits;
     }
-    int space =  6 + fontMetrics().width(QLatin1Char('9')) * digits;
+    int space =  10 + fontMetrics().width(QLatin1Char('9')) * digits;
     return space;
 
 }
@@ -92,7 +93,7 @@ void MyMdi::lineNumberPaintEvent(QPaintEvent *event)
 {
     qDebug()<<"lineNumberPaintEvent()";
     QPainter painter(lineNumberArea);
-    painter.fillRect(event->rect(), Qt::lightGray);
+    painter.fillRect(event->rect(), QColor("#FFB6C1"));
 
     QTextBlock block = firstVisibleBlock();
     int blockNumber = block.blockNumber();
@@ -109,12 +110,9 @@ void MyMdi::lineNumberPaintEvent(QPaintEvent *event)
     }
     while(block.isValid() && top <= event->rect().bottom())
     {
-        qDebug()<<"top = "<<top;
-        qDebug()<<"bottom = "<<bottom;
         if(block.isVisible() && bottom>= event->rect().top())
         {
             QString number = QString::number(blockNumber + 1);
-            qDebug()<<"number = "<<number;
             painter.setPen(Qt::black);
             painter.drawText(0,top, lineNumberArea->width(),
                              fontMetrics().height(),
@@ -133,7 +131,6 @@ bool MyMdi::NewFile()
     IsUntitled = true;
     static int sequence_no = 1;
     CurrFileName = tr("Untitled_%1.txt").arg(sequence_no++);
-    CurrFilePath = QFileInfo(CurrFileName).canonicalFilePath();
     setWindowTitle(CurrFileName);
     setAccessibleName(CurrFileName);
     return true;
@@ -144,7 +141,6 @@ bool MyMdi::OpenFile( QString fileName)
     if(fileName.isEmpty()&&fileName != QString("0"))
     {
         CurrFileName = QFileDialog::getOpenFileName(this);
-        qDebug()<<"CurrFileName = "<<CurrFileName;
         if(!CurrFileName.isEmpty())
         {
             return LoadFile(CurrFileName);
@@ -166,15 +162,20 @@ bool MyMdi::LoadFile(QString filename)
     if(!in.open(QIODevice::ReadOnly|QIODevice::Text))
     {
         QMessageBox::warning(this, tr("Error"),tr("Open File Error"));
+        qDebug()<<in.errorString();
         return false;
     }
     QTextStream instream(&in);
+    this->clear();
     this->appendPlainText(instream.readAll());
-    CurrFileName = QFileInfo(filename).fileName();
-    CurrFilePath = QFileInfo(filename).filePath();
-    qDebug()<<"CurrFileName = "<<CurrFileName;
+    CurrFileName = QFileInfo(in).fileName();
+    CurrFilePath = QFileInfo(in).filePath();
     connect(this, &QPlainTextEdit::textChanged, this, &MyMdi::fileModified);
     setAccessibleName(CurrFileName);
+    IsUntitled = false;
+    IsFileSaved = true;
+    setWindowTitle(CurrFilePath);
+    resetCursorPosition();
     return true;
 }
 bool MyMdi::Save()
@@ -192,8 +193,10 @@ bool MyMdi::Save()
 bool MyMdi::SaveAs()
 {
     qDebug()<<"SaveAs()";
-    CurrFileName = QFileDialog::getSaveFileName(this, tr("Save As"), CurrFilePath, tr("Text Document(*.txt)"));
-    qDebug()<<"CurrFileName = "<<CurrFileName;
+    CurrFileName = QFileDialog::getSaveFileName(this,
+                                                tr("Save As"),
+                                                CurrFilePath,
+                                                tr("Text Document(*.txt)"));
     if(!CurrFileName.isEmpty())
     {
         return SaveFile(CurrFileName);
@@ -209,17 +212,24 @@ bool MyMdi::CopySaveAs()
     QString fileName = QFileDialog::getSaveFileName(this, tr("Save As"),
                                                     CurrFilePath,
                                                     tr("Text Document(*.txt)"));
-    qDebug()<<"fileName = "<<fileName;
-    QFile out(fileName);
-    if(!out.open(QIODevice::WriteOnly|QIODevice::Text))
+    if(!fileName.isEmpty())
     {
-        QMessageBox::warning(this, tr("Error"), tr("Save File Error"));
+        QFile out(fileName);
+        if(!out.open(QIODevice::WriteOnly|QIODevice::Text))
+        {
+            QMessageBox::warning(this, tr("Error"), tr("Save File Error"));
+            qDebug()<<out.errorString();
+            return false;
+        }
+        QTextStream outStream(&out);
+        outStream<<this->toPlainText();
+        out.close();
+        return true;
+    }
+    else
+    {
         return false;
     }
-    QTextStream outStream(&out);
-    outStream<<this->toPlainText();
-    out.close();
-    return true;
 }
 bool MyMdi::SaveFile(QString fileName)
 {
@@ -228,14 +238,16 @@ bool MyMdi::SaveFile(QString fileName)
     if(!out.open(QIODevice::WriteOnly|QIODevice::Text))
     {
         QMessageBox::warning(this, tr("Error"), tr("Save File Error"));
+        qDebug()<<out.errorString();
         return false;
     }
     QTextStream outStream(&out);
     outStream<<this->toPlainText();
     setWindowTitle(fileName);
-    CurrFileName = QFileInfo(fileName).fileName();
+    CurrFileName = QFileInfo(out).fileName();
     setAccessibleName(CurrFileName);
     IsUntitled = false;
+    IsFileSaved = true;
     out.close();
     return true;
 }
@@ -244,7 +256,14 @@ void MyMdi::fileModified()
     qDebug()<<"fileModified()";
     setWindowModified(true);
     IsFileSaved = false;
-    setWindowTitle("*"+CurrFileName);
+    if(CurrFilePath.isEmpty())
+    {
+        setWindowTitle("*"+CurrFileName);
+    }
+    else
+    {
+        setWindowTitle("*"+CurrFilePath);
+    }
 }
 void MyMdi::closeEvent(QCloseEvent *event)
 {
@@ -257,16 +276,24 @@ void MyMdi::closeEvent(QCloseEvent *event)
     {
         QMessageBox::StandardButton  ret = QMessageBox::warning(this,
                              tr("Save File"),
-                             tr("File has been changed, Do you want to save the file?"),
+                             tr("File %1 has been changed, Do you want to save the file?").arg(CurrFileName),
                              QMessageBox::Save|QMessageBox::Discard|QMessageBox::Cancel);
         if(ret == QMessageBox::Save)
         {
             SaveAs();
+            event->accept();
+        }
+        else if(ret == QMessageBox::Discard)
+        {
+            event->accept();
+        }
+        else if(ret == QMessageBox::Cancel)
+        {
             event->ignore();
         }
         else
         {
-            event->accept();
+            event->ignore();
         }
     }
 }
@@ -302,10 +329,30 @@ bool MyMdi::GetIsUntitled()
 bool MyMdi::RenameFile()
 {
     qDebug()<<"RenameFile()";
-    QString newFileName = QFileDialog::getSaveFileName(this, tr("Save As"), CurrFilePath, tr("Text Document(*.txt)"));
-    QFile del(CurrFileName);
-    newFileName = QFileInfo(newFileName).fileName();
-    return del.rename(CurrFileName, newFileName);
+    QString newFileName = QFileDialog::getSaveFileName(this,
+                                                       tr("Save As"),
+                                                       CurrFilePath,
+                                                       tr("Text Document(*.txt)"));
+    if(!newFileName.isEmpty())
+    {
+        QFile del(CurrFileName);
+        if(!del.open(QIODevice::WriteOnly|QIODevice::Text))
+        {
+            QMessageBox::warning(this, tr("Error"), del.errorString());
+            return false;
+        }
+        del.rename(newFileName);
+        setWindowTitle(newFileName);
+        CurrFileName = QFileInfo(newFileName).fileName();
+        CurrFilePath = QFileInfo(newFileName).filePath();
+        IsUntitled = false;
+        del.close();
+        return true;
+    }
+    else
+    {
+        return false;
+    }
 }
 void MyMdi::setTextColor()
 {
@@ -469,4 +516,12 @@ QList<int> MyMdi::searchCurrentFile(QString searchString)
 {
     qDebug()<<"searchCurrentFile()";
     return Find(searchString, QTextDocument::FindWholeWords);
+}
+
+void MyMdi::resetCursorPosition()
+{
+    qDebug()<<"resetCursorPosition()";
+    QTextCursor cursor = this->textCursor();
+    cursor.movePosition(QTextCursor::Start);
+    this->setTextCursor(cursor);
 }

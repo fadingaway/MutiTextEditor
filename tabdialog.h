@@ -3,7 +3,7 @@
 
 #include "QTabWidget"
 #include "QDialog"
-
+#include "QThread"
 class TabDialog:public QDialog
 {
     Q_OBJECT
@@ -14,8 +14,14 @@ signals:
     void tabChanged(int tabIndex);
 private slots:
     void updateWindowTitle(int tab_Id);
+    void setTabAlpha(int value);
 private:
     QTabWidget *tabWidget;
+    QThread thread;
+    double currentAlpa;
+protected:
+    virtual void focusInEvent(QFocusEvent *e);
+    virtual void focusOutEvent(QFocusEvent *e);
 };
 
 class FindTab:public QWidget
@@ -23,6 +29,10 @@ class FindTab:public QWidget
     Q_OBJECT
 public:
     explicit FindTab(QString searchString = 0);
+signals:
+    void notifyTabWidget(int value);
+public slots:
+    void valueChange(int value);
 };
 
 class ReplaceTab:public QWidget
@@ -38,7 +48,5 @@ class DocumentSearchTab:public QWidget
 public:
     explicit DocumentSearchTab(QString searchString = 0);
 };
-
-
 
 #endif // TABDIALOG_H

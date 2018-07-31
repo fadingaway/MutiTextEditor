@@ -54,6 +54,7 @@ public:
     void highlightSearchString(QString searchString);
     void clearMark();
     QList<int> searchCurrentFile(QString searchString);
+    void resetCursorPosition();
 
     QString CurrFileName;
     QString CurrFilePath;

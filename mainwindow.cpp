@@ -21,12 +21,16 @@
 #include "QTextBlock"
 #include "QPlainTextEdit"
 #include "QDebug"
+#include "QSignalMapper"
 const static QString RENCENT_FILE_KEY = "Recent File History";
 MainWindow::MainWindow(QWidget *parent) : mdiArea(new QMdiArea)
 {
     qDebug()<<"MainWindow()";
     mdiArea.setHorizontalScrollBarPolicy(Qt::ScrollBarAsNeeded);
     mdiArea.setVerticalScrollBarPolicy(Qt::ScrollBarAsNeeded);
+
+    mapper = new QSignalMapper(this);
+    connect(mapper, SIGNAL(mapped(QString)), this, SLOT(OpenRecentFile(QString)));
 
     setCentralWidget(&mdiArea);
     //ReadSetting();
@@ -35,6 +39,7 @@ MainWindow::MainWindow(QWidget *parent) : mdiArea(new QMdiArea)
     setWindowTitle(tr("Muti-Text Document Editor"));
     connect(this, &MainWindow::mdiWindowCntChanged, this, &MainWindow::createDefaultMdiWindow);
     SetmdiWindowCnt(0);
+    this->showMaximized();
 }
 
 void MainWindow::createStatusBar()
@@ -56,11 +61,13 @@ int MainWindow::GetmdiWindowCnt()
 void MainWindow::createDefaultMdiWindow()
 {
     qDebug()<<"MainWindow::createDefaultMdiWindow()";
+    qDebug()<<"subwindowlist = "<<mdiArea.subWindowList().size();
     if(mdiArea.subWindowList().size() == 0)
     {
         MyMdi *child = createSubWindow();
         child->NewFile();
         child->show();
+        child->showMaximized();
         connect(child, &MyMdi::destroyed, this, &MainWindow::mdiWindowCntChanged);
     }
 }
@@ -70,7 +77,6 @@ MyMdi* MainWindow::createSubWindow()
     qDebug()<<"createSubWindow()";
     MyMdi *child = new MyMdi;
     mdiArea.addSubWindow(child);
-    qDebug()<<1.2;
     //connect(child, &MyMdi::copyAvailable, this, &MainWindow::Copy);
     //connect(child, &MyMdi::copyAvailable, this, &MainWindow::Cut);
     connect(child, &MyMdi::selectionChanged, this, &MainWindow::setTextColor);
@@ -81,21 +87,16 @@ MyMdi* MainWindow::createSubWindow()
 void MainWindow::NewFile()
 {
     qDebug()<<"MainWindow::NewFile()";
-    qDebug()<<1;
     MyMdi *child = createSubWindow();
-    qDebug()<<2;
     child->NewFile();
-    qDebug()<<3;
     child->show();
-    qDebug()<<4;
+    child->showMaximized();
 }
 
 void MainWindow::OpenFile()
 {
     qDebug()<<"MainWindow::OpenFile()";
-    qDebug()<<1;
     QString fileName = QFileDialog::getOpenFileName(this);
-    qDebug()<<2;
     if(!fileName.isEmpty())
     {
         QMdiSubWindow *existSubWindow = (QMdiSubWindow *)FindChildSubWindow(fileName);
@@ -189,12 +190,14 @@ void MainWindow::ReloadFile()
         }
         else if(ret == QMessageBox::Discard)
         {
-            mymdi->LoadFile(mymdi->GetCurrFileName());
+            mymdi->LoadFile(mymdi->CurrFilePath);
+            UpdateHistory(mymdi->CurrFileName);
         }
     }
     else
     {
-        mymdi->LoadFile(mymdi->GetCurrFileName());
+        mymdi->LoadFile(mymdi->CurrFilePath);
+        UpdateHistory(mymdi->CurrFileName);
     }
 }
 
@@ -240,6 +243,7 @@ void MainWindow::SaveAll()
     {
         subWindowList[i]->activateWindow();
         GetActiveMdiWindow()->Save();
+        UpdateHistory(GetActiveMdiWindow()->CurrFileName);
     }
 }
 
@@ -247,35 +251,50 @@ void MainWindow::RenameFile()
 {
     qDebug()<<"MainWindow::RenameFile()";
     GetActiveMdiWindow()->RenameFile();
+    UpdateHistory(GetActiveMdiWindow()->CurrFileName);
 }
 
 void MainWindow::Close()
 {
     qDebug()<<"MainWindow::Close()";
-    mdiArea.closeActiveSubWindow();
+    GetActiveMdiWindow()->close();
+    mdiArea.activeSubWindow()->close();
     emit mdiWindowCntChanged();
 }
 
 void MainWindow::CloseAll()
 {
     qDebug()<<"MainWindow::CloseAll()";
-    mdiArea.closeAllSubWindows();
+    QList<QMdiSubWindow *> subWindowList = mdiArea.subWindowList();
+    for(int i = 0; i< subWindowList.size(); i++)
+    {
+        mdiArea.setActiveSubWindow(subWindowList.at(i));
+        mdiArea.activeSubWindow()->close();
+    }
     emit mdiWindowCntChanged();
 }
 
 void MainWindow::CloseOthers()
 {
-    qDebug()<<"CloseOthers()";
-    QMdiSubWindow *subwindow = (QMdiSubWindow *)GetActiveMdiWindow();
-    mdiArea.closeAllSubWindows();
-    mdiArea.addSubWindow(subwindow);
-    mdiArea.show();
+    qDebug()<<"MainWindow::CloseOthers()";
+    QMdiSubWindow *subwindow = mdiArea.activeSubWindow();
+    QList<QMdiSubWindow *> subWindowList = mdiArea.subWindowList();
+    for(int i = 0; i< subWindowList.size(); i++)
+    {
+        if(subwindow != subWindowList.at(i))
+        {
+            mdiArea.setActiveSubWindow(subWindowList.at(i));
+            mdiArea.activeSubWindow()->close();
+        }
+    }
 }
 
 void MainWindow::DeleteFromDisk()
 {
-    qDebug()<<"DeleteFromDisk()";
-    QFile in(GetActiveMdiWindow()->GetCurrFileName());
+    qDebug()<<"MainWindow::DeleteFromDisk()";
+    QString filename = GetActiveMdiWindow()->CurrFilePath;
+    qDebug()<<"filename = "<<filename;
+    QFile in(filename);
     if(in.remove())
     {
         mdiArea.closeActiveSubWindow();
@@ -292,25 +311,25 @@ void MainWindow::DeleteFromDisk()
 
 void MainWindow::Print()
 {
-    qDebug()<<"Print()";
+    qDebug()<<"MainWindow::Print()";
     GetActiveMdiWindow()->Print();
 }
 
 void MainWindow::PrintNow()
 {
-    qDebug()<<"PrintNow()";
+    qDebug()<<"MainWindow::PrintNow()";
     GetActiveMdiWindow()->Print();
 }
 
 void MainWindow::OpenRecentFile(QString fileName)
 {
-    qDebug()<<"OpenRecentFile()";
+    qDebug()<<"MainWindow::OpenRecentFile()";
     Openfile(fileName);
 }
 
 void MainWindow::OpenAllRecentFile()
 {
-    qDebug()<<"OpenAllRecentFile()";
+    qDebug()<<"MainWindow::OpenAllRecentFile()";
     QStringList fileList = ReadHistory();
     if(!fileList.isEmpty())
     {
@@ -323,9 +342,10 @@ void MainWindow::OpenAllRecentFile()
 
 void MainWindow::ClearRecentHistory()
 {
-    qDebug()<<"ClearRecentHistory()";
+    qDebug()<<"MainWindow::ClearRecentHistory()";
     QSettings settings(QCoreApplication::organizationName(), QCoreApplication::applicationName());
     settings.remove(RENCENT_FILE_KEY);
+    RefreshFileMenu();
 }
 
 void MainWindow::Exit()
@@ -343,34 +363,37 @@ void MainWindow::Exit()
 
 void MainWindow::RefreshFileMenu()
 {
-    qDebug()<<"RefreshFileMenu()";
+    qDebug()<<"MainWindow::RefreshFileMenu()";
     if(GetActiveMdiWindow()!= 0)
     {
-        qDebug()<<"inside";
         if(GetActiveMdiWindow()->IsUntitled)
         {
-            QTextDocument *document = GetActiveMdiWindow()->document();
-
-            if(!document->isModified())
-            {
-                ActionSave->setEnabled(false);
-                ActionSaveAll->setEnabled(false);
-                ActionRename->setEnabled(false);
-                ActionDeleteFile->setEnabled(false);
-            }
-            else
+            ActionCloseFile->setEnabled(false);
+            ActionSave->setEnabled(true);
+            ActionSaveAll->setEnabled(true);
+            ActionRename->setEnabled(true);
+            ActionDeleteFile->setEnabled(false);
+            ActionSaveAs->setEnabled(true);
+            ActionReload->setEnabled(false);
+        }
+        else
+        {
+            qDebug()<<2;
+            if(GetActiveMdiWindow()->document()->isModified())
             {
                 ActionSave->setEnabled(true);
                 ActionSaveAll->setEnabled(true);
             }
-            ActionSaveAs->setEnabled(true);
-        }
-        else
-        {
-            ActionSave->setEnabled(true);
-            ActionSaveAll->setEnabled(true);
+            else
+            {
+                ActionSave->setEnabled(false);
+                ActionSaveAll->setEnabled(false);
+            }
+
             ActionRename->setEnabled(true);
             ActionDeleteFile->setEnabled(true);
+            ActionReload->setEnabled(true);
+            ActionCloseFile->setEnabled(true);
         }
         ActionSaveAs->setEnabled(true);
     }
@@ -381,12 +404,26 @@ void MainWindow::RefreshFileMenu()
         ActionSaveAs->setEnabled(false);
         ActionRename->setEnabled(false);
         ActionDeleteFile->setEnabled(false);
+        ActionReload->setEnabled(false);
+        ActionCloseFile->setEnabled(false);
+    }
+
+    if(mdiArea.subWindowList().size()>1)
+    {
+        ActionCloseOtherFiles->setEnabled(true);
+        ActionCloseAllFile->setEnabled(true);
+        ActionCloseFile->setEnabled(true);
+    }
+    else
+    {
+        ActionCloseOtherFiles->setEnabled(false);
+        ActionCloseAllFile->setEnabled(false);
     }
 }
 
 MyMdi *MainWindow::GetActiveMdiWindow()
 {
-    qDebug()<<"GetActiveMdiWindow()";
+    qDebug()<<"MainWindow::GetActiveMdiWindow()";
     if(QMdiSubWindow *subWindow = mdiArea.activeSubWindow())
     {
         return qobject_cast<MyMdi *>(subWindow->widget());
@@ -411,7 +448,7 @@ MyMdi *MainWindow::GetActiveMdiWindow()
 
 QStringList MainWindow::ReadHistory()
 {
-    qDebug()<<"ReadHistory()";
+    qDebug()<<"MainWindow::ReadHistory()";
     QSettings settings(QCoreApplication::organizationName(), QCoreApplication::applicationName());
     QStringList fileList;
     int count = settings.beginReadArray(RENCENT_FILE_KEY);
@@ -426,7 +463,7 @@ QStringList MainWindow::ReadHistory()
 
 void MainWindow::UpdateHistory(QString fileName)
 {
-    qDebug()<<"UpdateHistory()";
+    qDebug()<<"MainWindow::UpdateHistory()";
     QSettings settings(QCoreApplication::organizationName(), QCoreApplication::applicationName());
     QStringList oldFileList = ReadHistory();
     if(!oldFileList.contains(fileName))
@@ -449,19 +486,19 @@ void MainWindow::UpdateHistory(QString fileName)
 
 void MainWindow::CreateMenus()
 {
-    qDebug()<<"CreateMenus()";
+    qDebug()<<"MainWindow::CreateMenus()";
     /*--------File Menu Start -------*/
     QMenu *FileMenu = menuBar()->addMenu(tr("&File"));
     connect(FileMenu, &QMenu::aboutToShow, this, &MainWindow::RefreshFileMenu);
     QToolBar *toolBar = addToolBar(tr("File"));
 
     ActionNew = FileMenu->addAction(tr("New"));
-    ActionNew->setShortcut(QKeySequence("ctrl + N"));
+    ActionNew->setShortcut(QKeySequence::New);
     connect(ActionNew, &QAction::triggered, this, &MainWindow::NewFile);
     ActionNew->setStatusTip("Create New File");
     toolBar->addAction(ActionNew);
 
-    ActionOpen = FileMenu->addAction(tr("Open"),this, &MainWindow::OpenFile, QKeySequence("ctrl + O"));
+    ActionOpen = FileMenu->addAction(tr("Open"),this, &MainWindow::OpenFile, QKeySequence::Open);
     ActionOpen->setStatusTip(tr("Open file from computer"));
     toolBar->addAction(ActionOpen);
 
@@ -469,11 +506,12 @@ void MainWindow::CreateMenus()
     connect(ActionReload, &QAction::triggered, this, &MainWindow::ReloadFile);
     ActionReload->setToolTip(tr("ReOpen file"));
 
-    ActionSave = FileMenu->addAction(tr("Save"),this, &MainWindow::Save,  QKeySequence("ctrl + S"));
+    ActionSave = FileMenu->addAction(tr("Save"),this, &MainWindow::Save,  QKeySequence::Save);
     ActionSave->setStatusTip(tr("save the file"));
     toolBar->addAction(ActionSave);
 
     ActionSaveAs = FileMenu->addAction(tr("Save As"));
+    ActionSaveAs->setShortcut(QKeySequence::SaveAs);
     connect(ActionSaveAs, &QAction::triggered, this, &MainWindow::SaveAs);
     ActionSaveAs->setStatusTip(tr("Save file to another name or distination"));
 
@@ -489,6 +527,7 @@ void MainWindow::CreateMenus()
     ActionRename->setStatusTip(tr("Rename the file"));
 
     ActionCloseFile = FileMenu->addAction(tr("close"));
+    ActionCloseFile->setShortcut(QKeySequence::Close);
     connect(ActionCloseFile, &QAction::triggered, this, &MainWindow::Close);
     ActionCloseFile->setStatusTip(tr("Close the file"));
 
@@ -519,9 +558,12 @@ void MainWindow::CreateMenus()
     QStringList HistoryFileList = ReadHistory();
     for( int i = 0; i < HistoryFileList.size(); i++)
     {
-        FileMenu->addAction(QString(i) + ":" + HistoryFileList.at(i),
-                            this, SLOT(OpenRecentFile(QString)));
+        QString filePath = HistoryFileList.at(i);
+        historyAction = FileMenu->addAction(QString::number(i+1) + ":" + filePath);
+        mapper->setMapping(historyAction, filePath);
+        connect(historyAction, SIGNAL(triggered()), mapper, SLOT(map()));
     }
+
     FileMenu->addSeparator();
     
     FileMenu->addAction("Open All Recent File", this, &MainWindow::OpenAllRecentFile);
@@ -624,13 +666,13 @@ void MainWindow::Cut()
 
 void MainWindow::SelectAll()
 {
-    qDebug()<<"SelectAll()";
+    qDebug()<<"MainWindow::SelectAll()";
     GetActiveMdiWindow()->selectAll();
 }
 
 void MainWindow::RefreshEditMenu()
 {
-    qDebug()<<"RefreshEditMenu()";
+    qDebug()<<"MainWindow::RefreshEditMenu()";
     if(GetActiveMdiWindow())
     {
         MyMdi *subWindow = GetActiveMdiWindow();
@@ -676,7 +718,7 @@ void MainWindow::RefreshEditMenu()
 }
 void MainWindow::mouseDoubleClickEvent(QMouseEvent *event)
 {
-    qDebug()<<"mouseDoubleClickEvent()";
+    qDebug()<<"MainWindow::mouseDoubleClickEvent()";
     QMainWindow::mouseDoubleClickEvent(event);
 
 }
@@ -684,45 +726,85 @@ void MainWindow::mouseDoubleClickEvent(QMouseEvent *event)
 void MainWindow::Find()
 {
     qDebug()<<"MainWindow::Find()";
-    TabDialog *dialog = new TabDialog("abc",tabFind, this);
-    dialog->setFixedSize(480,320);
-    dialog->setWindowIcon(QIcon(QPixmap(0,0)));
-    dialog->show();
+    QTextCursor cursor = GetActiveMdiWindow()->textCursor();
+    if(cursor.hasSelection())
+    {
+        dialog = new TabDialog(cursor.selectedText(),tabFind, this);
+        dialog->installEventFilter(this);
+        dialog->setFixedSize(480,320);
+        dialog->setWindowIcon(QIcon(QPixmap(1,1)));
+        dialog->show();
+    }
+    else
+    {
+        dialog = new TabDialog(QString(""),tabFind, this);
+        dialog->installEventFilter(this);
+        dialog->setFixedSize(480,320);
+        dialog->setWindowIcon(QIcon(QPixmap(1,1)));
+        dialog->show();
+    }
 }
 
 void MainWindow::FindInFile()
 {
-    qDebug()<<"FindInFile()";
-    TabDialog *dialog = new TabDialog("abc",tabFile, this);
-    dialog->setFixedSize(480,320);
-    dialog->setWindowIcon(QIcon(QPixmap(0,0)));
-    dialog->show();
+    qDebug()<<"MainWindow::FindInFile()";
+
+    QTextCursor cursor = GetActiveMdiWindow()->textCursor();
+    if(cursor.hasSelection())
+    {
+        dialog = new TabDialog(cursor.selectedText(),tabFile, this);
+        dialog->installEventFilter(this);
+        dialog->setFixedSize(480,320);
+        dialog->setWindowIcon(QIcon(QPixmap(1,1)));
+        dialog->show();
+    }
+    else
+    {
+        dialog = new TabDialog(QString(""),tabFile, this);
+        dialog->installEventFilter(this);
+        dialog->setFixedSize(480,320);
+        dialog->setWindowIcon(QIcon(QPixmap(1,1)));
+        dialog->show();
+    }
 }
 
 void MainWindow::FindAndReplace()
 {
-    qDebug()<<"FindAndReplace()";
-    TabDialog *dialog = new TabDialog("abc",tabReplace, this);
-    dialog->setFixedSize(480,320);
-    dialog->setWindowIcon(QIcon(QPixmap(0,0)));
-    dialog->show();
+    qDebug()<<"MainWindow::FindAndReplace()";
+    QTextCursor cursor = GetActiveMdiWindow()->textCursor();
+    if(cursor.hasSelection())
+    {
+        dialog = new TabDialog(cursor.selectedText(),tabReplace, this);
+        dialog->installEventFilter(this);
+        dialog->setFixedSize(480,320);
+        dialog->setWindowIcon(QIcon(QPixmap(1,1)));
+        dialog->show();
+    }
+    else
+    {
+        dialog = new TabDialog(QString(""),tabReplace, this);
+        dialog->installEventFilter(this);
+        dialog->setFixedSize(480,320);
+        dialog->setWindowIcon(QIcon(QPixmap(1,1)));
+        dialog->show();
+    }
 }
 
 void MainWindow::FindNext()
 {
-    qDebug()<<"FindNext()";
+    qDebug()<<"MainWindow::FindNext()";
     GetActiveMdiWindow()->FindNext(searchString, QTextDocument::FindWholeWords);
 }
 
-void MainWindow::FindPrev()
+void MainWindow::MainWindow::FindPrev()
 {
-    qDebug()<<"createStatusBar()";
+    qDebug()<<"MainWindow::createStatusBar()";
     GetActiveMdiWindow()->FindNext(searchString, QTextDocument::FindBackward);
 }
 
 void MainWindow::ColumnLocate()
 {
-    qDebug()<<"ColumnLocate()";
+    qDebug()<<"MainWindow::ColumnLocate()";
     QDialog *dialog = new QDialog(this);
     QVBoxLayout *layout = new QVBoxLayout;
 
@@ -815,7 +897,7 @@ void MainWindow::unSetTextColor()
 
 void MainWindow::gotoLine(int lineNo)
 {
-    qDebug()<<"gotoLine()";
+    qDebug()<<"MainWindow::gotoLine()";
     QTextCursor cursor = GetActiveMdiWindow()->textCursor();
     cursor.setPosition(0);
     cursor.movePosition(QTextCursor::Down, QTextCursor::MoveAnchor,lineNo);
@@ -825,12 +907,12 @@ void MainWindow::gotoLine(int lineNo)
 
 void MainWindow::SaveCopyText()
 {
-    qDebug()<<"SaveCopyText()";
+    qDebug()<<"MainWindow::SaveCopyText()";
     GetActiveMdiWindow()->CopySaveAs();
 }
 
 MyMdi *MainWindow::FindChildSubWindow(QString filename)
 {
-    qDebug()<<"FindChildSubWindow()";
+    qDebug()<<"MainWindow::FindChildSubWindow()";
     return mdiArea.findChild<MyMdi *>(filename);
 }

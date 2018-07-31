@@ -34,7 +34,7 @@ void MyDockWidget::updateLeftColumnArea(int value)
 }
 void MyDockWidget::updateTextArea(QList<QString> result)
 {
-    QTextBlockFormat blockFormat = textEdit->textDocument()->firstBlock().blockFormat();
+    QTextBlockFormat blockFormat = textEdit->document()->firstBlock().blockFormat();
     textEdit->clear();
     /*if(!result.resultPath.isEmpty())
     {
@@ -291,7 +291,7 @@ void MyDockWidget::mousePressEvent(QMouseEvent *event)
         if(viewholders.at(i).top < eventY &&eventY <viewholders.at(i).bottom
                 && 0< eventX && eventX < 14)
         {
-            QTextBlock block = textEdit->textDocument()->firstBlock();
+            QTextBlock block = textEdit->document()->firstBlock();
 
             while(block.isValid())
             {
@@ -319,7 +319,7 @@ void MyDockWidget::mousePressEvent(QMouseEvent *event)
                         //keep block info into temp result package before click -
                         //to restore previous status.
                         plusCaseSearchResult.clear();
-                        QTextBlock tempblock = textEdit->textDocument()->firstBlock();
+                        QTextBlock tempblock = textEdit->document()->firstBlock();
 
                         while(tempblock.isValid())
                         {
@@ -362,7 +362,7 @@ void MyDockWidget::mousePressEvent(QMouseEvent *event)
                     {
                         if(viewholders.at(i).plusInd == true)
                         {
-                            QTextBlock tempBlock = textEdit->textDocument()->firstBlock();
+                            QTextBlock tempBlock = textEdit->document()->firstBlock();
                             //store the block from start.
                             while(block != tempBlock)
                             {
@@ -402,7 +402,7 @@ void MyDockWidget::mousePressEvent(QMouseEvent *event)
                         }
                         else if(viewholders.at(i).plusInd == false)
                         {
-                            QTextBlock tempBlock = textEdit->textDocument()->firstBlock();
+                            QTextBlock tempBlock = textEdit->document()->firstBlock();
                             //store the block from start.
                             while(block != tempBlock)
                             {
@@ -463,7 +463,7 @@ void MyDockWidget::getDoubleClickBlockText(QString text)
 {
     doubleClickBlockText = text;
     QList<QString> tempResult;
-    QTextBlock block = textEdit->textDocument()->firstBlock();
+    QTextBlock block = textEdit->document()->firstBlock();
 
     while(block.isValid())
     {
@@ -490,7 +490,7 @@ void MyDockWidget::getDoubleClickBlockText(QString text)
                         &&!nextBlockText.isEmpty())
                 {
                     plusCaseSearchResult.clear();
-                    QTextBlock tempblock = textEdit->textDocument()->firstBlock();
+                    QTextBlock tempblock = textEdit->document()->firstBlock();
 
                     while(tempblock.isValid())
                     {
