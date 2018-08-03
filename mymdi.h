@@ -40,6 +40,7 @@ public slots:
     void updateLineNumberArea(const QRect &, int);
     void highlightCurrentLine();
     void resizeEvent(QResizeEvent *e);
+    void setSearchString();
 
 public:
     explicit MyMdi(QWidget *parent = 0);
@@ -51,26 +52,26 @@ public:
     void lineNumberPaintEvent(QPaintEvent *event);
     int lineNumberWidth();
     void MarkLines(QList<QPoint> lineHolder);
-    void highlightSearchString(QString searchString);
+    void highlightSearchString();
     void clearMark();
     QList<int> searchCurrentFile(QString searchString);
     void resetCursorPosition();
-
+    void removeDuplicateExtraSelection(QTextEdit::ExtraSelection extraSelection);
     QString CurrFileName;
     QString CurrFilePath;
     bool IsUntitled;
     bool IsFileSaved;
     QTextDocument *textDocument;
     QString searchString = 0;
-    QString prevSearchString = 0;
     bool isFirstSearch = true;
     QTextCursor textcursor;
     int totalCount = 0;
     QWidget *lineNumberArea;
+    QTextCursor currentCursor;
 
-    QList<int> Find(QString searchString,QTextDocument::FindFlag options);
+    QList<int> Find(QString searchString,QTextDocument::FindFlags options);
 
-    void FindNext(QString searchString,QTextDocument::FindFlag options);
+    void FindNext(QString searchString,QTextDocument::FindFlags options, bool searchLoop, bool searchDirection);
 };
 
 class LineNumberArea:public QWidget

@@ -77,10 +77,6 @@ MyMdi* MainWindow::createSubWindow()
     qDebug()<<"createSubWindow()";
     MyMdi *child = new MyMdi;
     mdiArea.addSubWindow(child);
-    //connect(child, &MyMdi::copyAvailable, this, &MainWindow::Copy);
-    //connect(child, &MyMdi::copyAvailable, this, &MainWindow::Cut);
-    connect(child, &MyMdi::selectionChanged, this, &MainWindow::setTextColor);
-    connect(child, &MyMdi::cursorPositionChanged, this, &MainWindow::unSetTextColor);
     SetmdiWindowCnt(GetmdiWindowCnt()+1);
     return child;
 }
@@ -732,16 +728,22 @@ void MainWindow::Find()
         dialog = new TabDialog(cursor.selectedText(),tabFind, this);
         dialog->installEventFilter(this);
         dialog->setFixedSize(480,320);
-        dialog->setWindowIcon(QIcon(QPixmap(1,1)));
+        dialog->setWindowFlags(Qt::Drawer);
+        connect(dialog->findtab, SIGNAL(notifySearchNextClicked(QString, bool, bool, bool, bool)),
+                               this, SLOT(FindNextFromTabDialog(QString, bool, bool, bool, bool)));
         dialog->show();
+
     }
     else
     {
         dialog = new TabDialog(QString(""),tabFind, this);
         dialog->installEventFilter(this);
         dialog->setFixedSize(480,320);
-        dialog->setWindowIcon(QIcon(QPixmap(1,1)));
+        dialog->setWindowFlags(Qt::Drawer);
+        connect(dialog->findtab, SIGNAL(notifySearchNextClicked(QString, bool, bool, bool, bool)),
+                               this, SLOT(FindNextFromTabDialog(QString, bool, bool, bool, bool)));
         dialog->show();
+
     }
 }
 
@@ -755,7 +757,10 @@ void MainWindow::FindInFile()
         dialog = new TabDialog(cursor.selectedText(),tabFile, this);
         dialog->installEventFilter(this);
         dialog->setFixedSize(480,320);
-        dialog->setWindowIcon(QIcon(QPixmap(1,1)));
+        dialog->setWindowFlags(Qt::Drawer);
+        connect(dialog->documentTab, SIGNAL(notifySearchNextClicked(QString, bool, bool, bool, bool)),
+                               this, SLOT(FindNextFromTabDialog(QString, bool, bool, bool, bool)));
+
         dialog->show();
     }
     else
@@ -763,7 +768,10 @@ void MainWindow::FindInFile()
         dialog = new TabDialog(QString(""),tabFile, this);
         dialog->installEventFilter(this);
         dialog->setFixedSize(480,320);
-        dialog->setWindowIcon(QIcon(QPixmap(1,1)));
+        dialog->setWindowFlags(Qt::Drawer);
+        connect(dialog->documentTab, SIGNAL(notifySearchNextClicked(QString, bool, bool, bool, bool)),
+                               this, SLOT(FindNextFromTabDialog(QString, bool, bool, bool, bool)));
+
         dialog->show();
     }
 }
@@ -777,7 +785,10 @@ void MainWindow::FindAndReplace()
         dialog = new TabDialog(cursor.selectedText(),tabReplace, this);
         dialog->installEventFilter(this);
         dialog->setFixedSize(480,320);
-        dialog->setWindowIcon(QIcon(QPixmap(1,1)));
+        dialog->setWindowFlags(Qt::Drawer);
+        connect(dialog->replaceTab, SIGNAL(notifySearchNextClicked(QString, bool, bool, bool, bool)),
+                               this, SLOT(FindNextFromTabDialog(QString, bool, bool, bool, bool)));
+
         dialog->show();
     }
     else
@@ -785,21 +796,110 @@ void MainWindow::FindAndReplace()
         dialog = new TabDialog(QString(""),tabReplace, this);
         dialog->installEventFilter(this);
         dialog->setFixedSize(480,320);
-        dialog->setWindowIcon(QIcon(QPixmap(1,1)));
+        dialog->setWindowFlags(Qt::Drawer);
+        connect(dialog->replaceTab, SIGNAL(notifySearchNextClicked(QString, bool, bool, bool, bool)),
+                               this, SLOT(FindNextFromTabDialog(QString, bool, bool, bool, bool)));
+
         dialog->show();
+    }
+}
+
+void MainWindow::FindNextFromTabDialog(QString searchString, bool matchWholeWord, bool matchUpperLower, bool SearchLoop, bool searchDirection)
+{
+    qDebug()<<"MainWindow::FindNextFromTabDialog()";
+    if(matchWholeWord && matchUpperLower && searchDirection)
+    {
+        qDebug()<<"matchWholeWord && matchUpperLower && searchDirection";
+        GetActiveMdiWindow()->FindNext(searchString,
+                                       QTextDocument::FindWholeWords|QTextDocument::FindCaseSensitively|QTextDocument::FindBackward,
+                                       SearchLoop,
+                                       searchDirection);
+    }
+    else if(matchWholeWord && matchUpperLower)
+    {
+        qDebug()<<"matchWholeWord && matchUpperLower";
+        GetActiveMdiWindow()->FindNext(searchString,
+                                       QTextDocument::FindWholeWords|QTextDocument::FindCaseSensitively,
+                                       SearchLoop,
+                                       searchDirection);
+    }
+    else if(matchWholeWord && searchDirection)
+    {
+        qDebug()<<"matchWholeWord && searchDirection";
+        GetActiveMdiWindow()->FindNext(searchString,
+                                       QTextDocument::FindWholeWords|QTextDocument::FindBackward,
+                                       SearchLoop,
+                                       searchDirection);
+    }
+    else if(matchUpperLower && searchDirection)
+    {
+        qDebug()<<"matchUpperLower && searchDirection";
+        GetActiveMdiWindow()->FindNext(searchString,
+                                       QTextDocument::FindCaseSensitively|QTextDocument::FindBackward,
+                                       SearchLoop,
+                                       searchDirection);
+    }
+    else if(matchUpperLower)
+    {
+        qDebug()<<"matchUpperLower";
+        GetActiveMdiWindow()->FindNext(searchString,
+                                       QTextDocument::FindCaseSensitively,
+                                       SearchLoop,
+                                       searchDirection);
+    }
+    else if(matchWholeWord)
+    {
+        qDebug()<<"matchWholeWord";
+        GetActiveMdiWindow()->FindNext(searchString,
+                                       QTextDocument::FindWholeWords,
+                                       SearchLoop,
+                                       searchDirection);
+    }
+    else if(searchDirection)
+    {
+        qDebug()<<"searchDirection";
+        GetActiveMdiWindow()->FindNext(searchString,
+                                       QTextDocument::FindBackward,
+                                       SearchLoop,
+                                       searchDirection);
+    }
+    else
+    {
+        qDebug()<<"Just search";
+        GetActiveMdiWindow()->FindNext(searchString,
+                                       QTextDocument::FindWholeWords,
+                                       SearchLoop,
+                                       searchDirection);
     }
 }
 
 void MainWindow::FindNext()
 {
     qDebug()<<"MainWindow::FindNext()";
-    GetActiveMdiWindow()->FindNext(searchString, QTextDocument::FindWholeWords);
+    qDebug()<<"searchString = "<<searchString;
+    if(GetActiveMdiWindow()->textCursor().hasSelection())
+    {
+        searchString = GetActiveMdiWindow()->textCursor().selectedText();
+        GetActiveMdiWindow()->FindNext(searchString, QTextDocument::FindWholeWords, true, false);
+    }
+    else if(!searchString.isEmpty())
+    {
+        GetActiveMdiWindow()->FindNext(searchString, QTextDocument::FindWholeWords, true, false);
+    }
 }
 
 void MainWindow::MainWindow::FindPrev()
 {
-    qDebug()<<"MainWindow::createStatusBar()";
-    GetActiveMdiWindow()->FindNext(searchString, QTextDocument::FindBackward);
+    qDebug()<<"MainWindow::FindPrev()";
+    if(GetActiveMdiWindow()->textCursor().hasSelection())
+    {
+        searchString = GetActiveMdiWindow()->textCursor().selectedText();
+        GetActiveMdiWindow()->FindNext(searchString, QTextDocument::FindBackward, true, true);
+    }
+    else if(!searchString.isEmpty())
+    {
+        GetActiveMdiWindow()->FindNext(searchString, QTextDocument::FindBackward, true, true);
+    }
 }
 
 void MainWindow::ColumnLocate()
@@ -877,24 +977,6 @@ void MainWindow::ColumnLocate()
     stopPositionValue->setText(QString(lastBlockNo));
 }
 
-void MainWindow::setTextColor()
-{
-    qDebug()<<"MainWindow::setTextColor()";
-    if(GetActiveMdiWindow())
-        GetActiveMdiWindow()->setTextColor();
-    else
-        qDebug()<<"Error";
-}
-
-void MainWindow::unSetTextColor()
-{
-    qDebug()<<"MainWindow::unSetTextColor()";
-    if(GetActiveMdiWindow())
-        GetActiveMdiWindow()->unSetTextColor();
-    else
-        qDebug()<<"Error";
-}
-
 void MainWindow::gotoLine(int lineNo)
 {
     qDebug()<<"MainWindow::gotoLine()";
@@ -902,7 +984,6 @@ void MainWindow::gotoLine(int lineNo)
     cursor.setPosition(0);
     cursor.movePosition(QTextCursor::Down, QTextCursor::MoveAnchor,lineNo);
     GetActiveMdiWindow()->setTextCursor(cursor);
-    unSetTextColor();
 }
 
 void MainWindow::SaveCopyText()

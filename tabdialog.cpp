@@ -16,27 +16,28 @@
 #include "QDebug"
 #include "QThread"
 #include "QApplication"
+#include "QButtonGroup"
+
 TabDialog::TabDialog(QString searchString, int tabIndex, QWidget *parent):QDialog(parent)
 {
     qDebug()<<"TabDialog::TabDialog";
     tabWidget = new QTabWidget;
-    FindTab *findTab = new FindTab(searchString);
-    ReplaceTab *findTab1 = new ReplaceTab(searchString);
-    DocumentSearchTab *findTab2 = new DocumentSearchTab(searchString);
-    tabWidget->addTab(findTab, tr("Find"));
-    tabWidget->addTab(findTab1, tr("Replace"));
-    tabWidget->addTab(findTab2, tr("File Search"));
+    findtab = new FindTab(searchString);
+    replaceTab = new ReplaceTab(searchString);
+    documentTab = new DocumentSearchTab(searchString);
+    tabWidget->addTab(findtab, tr("Find"));
+    tabWidget->addTab(replaceTab, tr("Replace"));
+    tabWidget->addTab(documentTab, tr("File Search"));
 
     connect(tabWidget,SIGNAL(currentChanged(int)),this, SLOT(updateWindowTitle(int)));
 
-    connect(findTab, SIGNAL(notifyTabWidget(int)), this,SLOT(setTabAlpha(int)));
+    connect(findtab, SIGNAL(notifyTabWidget(int)), this,SLOT(setTabAlpha(int)));
 
     QVBoxLayout *mainLayout = new QVBoxLayout;
     mainLayout->addWidget(tabWidget);
     mainLayout->setMargin(1);
     setLayout(mainLayout);
     updateWindowTitle(tabIndex);
-    setFocusPolicy(Qt::ClickFocus);
 
 }
 
@@ -75,6 +76,62 @@ void FindTab::valueChange(int value)
     emit notifyTabWidget(value);
 }
 
+void FindTab::ClearMarks()
+{
+    qDebug()<<"FindTab::ClearMarks";
+    emit ClearMarkClicked();
+}
+
+void FindTab::SearchAll()
+{
+    qDebug()<<"FindTab::SearchAll";
+    emit notifySearchAllClicked(getSearchString(),
+                                checkBoxMarkLine->isChecked(),
+                                checkBoxHighlightSearchResult->isChecked(),
+                                checkBoxClearLastMark->isChecked());
+}
+
+void FindTab::SearchNext()
+{
+    qDebug()<<"FindTab::SearchNext";
+    emit notifySearchNextClicked(getSearchString(),
+                                 checkBoxMatchWholeWord->isChecked(),
+                                 checkBoxMatchUpperLower->isChecked(),
+                                 checkBoxSearchLoop->isChecked(),
+                                 buttonUp->isChecked());
+}
+
+QString FindTab::getSearchString()
+{
+    qDebug()<<"FindTab::getSearchString";
+    qDebug()<<comboBox->currentText();
+    return comboBox->currentText();
+}
+
+void FindTab::CountClicked()
+{
+    qDebug()<<"FindTab::CountClicked";
+    emit notifyCountClicked();
+}
+
+void FindTab::SearchAllFile()
+{
+    qDebug()<<"FindTab::SearchAllFile";
+    emit notifySearchAllOpenedFileClicked();
+}
+
+void FindTab::SearchCurrentFile()
+{
+    qDebug()<<"FindTab::SearchCurrentFile";
+    emit notifySearchCurrentOpenedFileClicked();
+}
+
+void FindTab::cancel()
+{
+    qDebug()<<"FindTab::cancel";
+    emit notifyCancelClicked();
+}
+
 void TabDialog::focusInEvent(QFocusEvent *e)
 {
     qDebug()<<"TabDialog::focusInEvent";
@@ -104,7 +161,7 @@ FindTab::FindTab(QString searchString)
     QHBoxLayout *searchTargetLayout = new QHBoxLayout();
     QLabel *labelSearchTarget = new QLabel(tr("Search Target:"));
     QLineEdit *LineEditSearchTarget = new QLineEdit();
-    QComboBox *comboBox = new QComboBox;
+    comboBox = new QComboBox;
     comboBox->setLineEdit(LineEditSearchTarget);
     comboBox->setEditText(searchString);
     comboBox->setFixedWidth(190);
@@ -121,9 +178,9 @@ FindTab::FindTab(QString searchString)
     QGroupBox *markGroup = new QGroupBox();
     //markGroup->setStyle(QStyle::);
     QVBoxLayout *searchCritriaLayout_left = new QVBoxLayout();
-    QCheckBox *checkBoxMarkLine = new QCheckBox(tr("Mark Whole Line"));
-    QCheckBox *checkBoxHighlightSearchResult = new QCheckBox(tr("Highlight Search Result"));
-    QCheckBox *checkBoxClearLastMark = new QCheckBox(tr("Clear Last Mark"));
+    checkBoxMarkLine = new QCheckBox(tr("Mark Whole Line"));
+    checkBoxHighlightSearchResult = new QCheckBox(tr("Highlight Search Result"));
+    checkBoxClearLastMark = new QCheckBox(tr("Clear Last Mark"));
     searchCritriaLayout_left->addWidget(checkBoxMarkLine);
     searchCritriaLayout_left->addWidget(checkBoxHighlightSearchResult);
     searchCritriaLayout_left->addWidget(checkBoxClearLastMark);
@@ -131,10 +188,12 @@ FindTab::FindTab(QString searchString)
     QVBoxLayout *searchCritriaLayout_right = new QVBoxLayout();
     QPushButton *buttonSearchAll = new QPushButton(tr("Search All"));
     buttonSearchAll->setFixedWidth(85);
-    QCheckBox *checkBoxPickRange = new QCheckBox(tr("Picked Area"));
+    connect(buttonSearchAll, &QPushButton::clicked, this, &FindTab::SearchAll);
+    checkBoxPickRange = new QCheckBox(tr("Picked Area"));
     checkBoxPickRange->setFixedWidth(85);
     QPushButton *buttonClear = new QPushButton(tr("Clear"));
     buttonClear->setFixedWidth(85);
+    connect(buttonClear, &QPushButton::clicked, this, &FindTab::ClearMarks);
     searchCritriaLayout_right->addWidget(buttonSearchAll);
     searchCritriaLayout_right->addWidget(checkBoxPickRange);
     searchCritriaLayout_right->addWidget(buttonClear);
@@ -149,9 +208,9 @@ FindTab::FindTab(QString searchString)
 
     //2
     QVBoxLayout *matchLayout = new QVBoxLayout();
-    QCheckBox *checkBoxMatchWholeWord = new QCheckBox(tr("Match Whole Word"));
-    QCheckBox *checkBoxMatchUpperLower = new QCheckBox(tr("Match upper or lower"));
-    QCheckBox *checkBoxSearchLoop = new QCheckBox(tr("Loop Search"));
+    checkBoxMatchWholeWord = new QCheckBox(tr("Match Whole Word"));
+    checkBoxMatchUpperLower = new QCheckBox(tr("Match upper or lower"));
+    checkBoxSearchLoop = new QCheckBox(tr("Loop Search"));
     matchLayout->addWidget(checkBoxMatchWholeWord);
     matchLayout->addWidget(checkBoxMatchUpperLower);
     matchLayout->addWidget(checkBoxSearchLoop);
@@ -178,7 +237,7 @@ FindTab::FindTab(QString searchString)
 
     QGroupBox *directionGroup = new QGroupBox(tr("Drection"));
     QVBoxLayout *directionLayout = new QVBoxLayout();
-    QRadioButton *buttonUp = new QRadioButton(tr("Up"));
+    buttonUp = new QRadioButton(tr("Up"));
     QRadioButton *buttonDown = new QRadioButton(tr("Down"));
     buttonDown->setChecked(true);
     directionLayout->addWidget(buttonUp);
@@ -214,13 +273,18 @@ FindTab::FindTab(QString searchString)
     QVBoxLayout *buttonListLayout = new QVBoxLayout;
     QPushButton *buttonNext = new QPushButton(tr("Search next"));
     buttonNext->setFixedWidth(130);
+    connect(buttonNext, &QPushButton::clicked, this, &FindTab::SearchNext);
     QPushButton *buttonCount = new QPushButton(tr("Count"));
     buttonCount->setFixedWidth(130);
+    connect(buttonCount, &QPushButton::clicked, this, &FindTab::CountClicked);
     QPushButton *buttonSearchAllOpenFile = new QPushButton(tr("Search All Opened File"));
     buttonSearchAllOpenFile->setFixedWidth(130);
+    connect(buttonSearchAllOpenFile, &QPushButton::clicked, this, &FindTab::SearchAllFile);
     QPushButton *buttonSearchCurrentFile = new QPushButton(tr("Search Current File"));
     buttonSearchCurrentFile->setFixedWidth(130);
+    connect(buttonSearchAllOpenFile, &QPushButton::clicked, this, &FindTab::SearchCurrentFile);
     QPushButton *buttonCancel = new QPushButton(tr("Cancel"));
+    connect(buttonCancel, &QPushButton::clicked, this, &FindTab::cancel);
     buttonCancel->setFixedWidth(130);
 
     buttonListLayout->addWidget(buttonNext);

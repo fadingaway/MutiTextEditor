@@ -78,14 +78,13 @@ public slots:
     void Find();
     void FindInFile();
     void FindNext();
+    void FindNextFromTabDialog(QString searchString, bool matchWholeWord, bool matchUpperLower, bool SearchLoop, bool searchDirection);
     void FindPrev();
     void FindAndReplace();
     void ColumnLocate();
     //void LocateBrace();
     /*------Menu Search----*/
 
-    void setTextColor();
-    void unSetTextColor();
     void gotoLine(int lineNo);
 private:
     QMdiArea mdiArea;
