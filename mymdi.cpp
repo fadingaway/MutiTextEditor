@@ -21,10 +21,9 @@ MyMdi::MyMdi(QWidget *parent):QPlainTextEdit(parent)
 
     connect(this, SIGNAL(blockCountChanged(int)), this, SLOT(updateLineNumberWidth(int)));
     connect(this, SIGNAL(updateRequest(QRect,int)), this, SLOT(updateLineNumberArea(QRect,int)));
-    connect(this, SIGNAL(cursorPositionChanged()), this, SLOT(highlightCurrentLine()));
     connect(this, &MyMdi::textChanged, this,&MyMdi::fileModified);
-    connect(this, &MyMdi::selectionChanged, this, &MyMdi::setTextColor);
-
+    connect(this, &MyMdi::cursorPositionChanged, this, &MyMdi::setTextColor);
+    //connect(this, SIGNAL(cursorPositionChanged()), this, SLOT(highlightCurrentLine()));
     setAccessibleName(CurrFileName);
     updateLineNumberWidth(0);
 }
@@ -32,10 +31,8 @@ void MyMdi::highlightCurrentLine()
 {
     qDebug()<<"MyMdi::highlightCurrentLine()";
     QList<QTextEdit::ExtraSelection> extraSelections = this->extraSelections();
-    qDebug()<<"extraSelections size = "<<extraSelections.size();
     if(extraSelections.size() <= 1)
     {
-        qDebug()<<"2";
         QTextEdit::ExtraSelection extraSelection;
         QTextCursor textcursor(textCursor());
         extraSelection.cursor = textcursor;
@@ -50,10 +47,8 @@ void MyMdi::highlightCurrentLine()
     }
     for(int i = 0; i< extraSelections.size();i++)
     {
-        qDebug()<<extraSelections.at(i).cursor.blockNumber();
         if(extraSelections.at(i).cursor.blockNumber() == textCursor().blockNumber())
         {
-            qDebug()<<1;
             QTextEdit::ExtraSelection extraSelection;
             QTextCursor textcursor(textCursor());
             extraSelection.cursor = textcursor;
@@ -61,7 +56,6 @@ void MyMdi::highlightCurrentLine()
             extraSelection.format = textCursor().charFormat();
             extraSelection.format.setBackground(QColor(200,255,255,255));
             extraSelection.format.setProperty(QTextFormat::FullWidthSelection,true);
-            //extraSelections.append(extraSelection);
             extraSelections.insert(0,extraSelection);
             setExtraSelections(extraSelections);
             break;
@@ -71,7 +65,7 @@ void MyMdi::highlightCurrentLine()
 
 int MyMdi::lineNumberWidth()
 {
-    qDebug()<<"MyMdi::lineNumberWidth()";
+    //qDebug()<<"MyMdi::lineNumberWidth()";
     int digits = 1;
     int max = qMax(1, blockCount());
     while(max >= 10)
@@ -85,7 +79,7 @@ int MyMdi::lineNumberWidth()
 }
 void MyMdi::updateLineNumberWidth(int newBlockCount)
 {
-    qDebug()<<"MyMdi::updateLineNumberWidth()";
+    //qDebug()<<"MyMdi::updateLineNumberWidth()";
     newBlockCount = 0;
     setViewportMargins(lineNumberWidth(), 0 , 0,  0);
     this->repaint();
@@ -109,7 +103,7 @@ void MyMdi::updateLineNumberArea(const QRect &rect, int dy)
 }
 void MyMdi::resizeEvent(QResizeEvent *e)
 {
-    qDebug()<<"MyMdi::resizeEvent()";
+    //qDebug()<<"MyMdi::resizeEvent()";
     QPlainTextEdit::resizeEvent(e);
     QRect cr = contentsRect();
     lineNumberArea->setGeometry(QRect(cr.left(), cr.top(), lineNumberWidth(),cr.height()));
@@ -117,15 +111,21 @@ void MyMdi::resizeEvent(QResizeEvent *e)
 
 void MyMdi::setSearchString()
 {
+    qDebug()<<"MyMdi::setSearchString()";
     searchString = textCursor().selectedText();
-    textCursor().clearSelection();
-    Find(searchString, QTextDocument::FindWholeWords);
+    Find(searchString, QTextDocument::FindWholeWords, true);
+}
+
+void MyMdi::setSearchStringFromTab(QString text)
+{
+    qDebug()<<"MyMdi::setSearchStringFromTab()";
+    searchString  = text;
 }
 void MyMdi::lineNumberPaintEvent(QPaintEvent *event)
 {
     //qDebug()<<"MyMdi::lineNumberPaintEvent()";
     QPainter painter(lineNumberArea);
-    painter.fillRect(event->rect(), QColor("#FFB6C1"));
+    painter.fillRect(event->rect(), QColor("#FFE4E1"));
 
     QTextBlock block = firstVisibleBlock();
     int blockNumber = block.blockNumber();
@@ -189,7 +189,7 @@ bool MyMdi::OpenFile( QString fileName)
 }
 bool MyMdi::LoadFile(QString filename)
 {
-    qDebug()<<"MyMdi::LoadFile()";
+    qDebug()<<"MyMdi::LoadFile() start";
     QFile in(filename);
     if(!in.open(QIODevice::ReadOnly|QIODevice::Text))
     {
@@ -206,9 +206,10 @@ bool MyMdi::LoadFile(QString filename)
     setAccessibleName(CurrFileName);
     IsUntitled = false;
     IsFileSaved = true;
-    setWindowTitle(CurrFilePath);
+    setWindowTitle(CurrFileName);
     resetCursorPosition();
     return true;
+    qDebug()<<"MyMdi::LoadFile() end";
 }
 bool MyMdi::Save()
 {
@@ -288,6 +289,7 @@ void MyMdi::fileModified()
     qDebug()<<"MyMdi::fileModified()";
     setWindowModified(true);
     IsFileSaved = false;
+
     if(CurrFilePath.isEmpty())
     {
         setWindowTitle("*"+CurrFileName);
@@ -388,74 +390,98 @@ bool MyMdi::RenameFile()
 }
 void MyMdi::setTextColor()
 {
+    qDebug()<<"MyMdi::setTextColor()start";
     unSetTextColor();
-    qDebug()<<"MyMdi::setTextColor()";
     if(textCursor().hasSelection())
     {
         searchString = textCursor().selectedText();
-        textcursor = textCursor();
-        textcursor.clearSelection();
-        setTextCursor(textcursor);
-        Find(searchString, QTextDocument::FindWholeWords);
+        if(!searchString.contains(QString(" ")))
+        {
+            setStyleSheet("QPlainTextEdit{selection-background-color: #FFA500; selection-color: #000000;}");
+            Find(searchString, QTextDocument::FindWholeWords, true);
+        }
+        else
+        {
+            setStyleSheet("QPlainTextEdit{selection-background-color: #EEDDDD; selection-color: #000000;}");
+        }
     }
     else
     {
         highlightCurrentLine();
     }
-    qDebug()<<"MyMdi::setTextColor() end";
+    qDebug()<<"MyMdi::setTextColor()end";
 }
 
 void MyMdi::unSetTextColor()
 {
-    qDebug()<<"MyMdi::unSetTextColor()";
-        QList<QTextEdit::ExtraSelection> extraSelections;
-        QTextEdit::ExtraSelection extraSelection;
-        extraSelection.cursor = this->textCursor();
-        //extraSelection.cursor.clearSelection();
-        extraSelection.format = textCursor().charFormat();
-        extraSelection.format.setBackground(Qt::white);
-        extraSelection.format.setForeground(Qt::black);
-        extraSelection.format.setProperty(QTextFormat::FullWidthSelection,true);
-        extraSelections.append(extraSelection);
-        setExtraSelections(extraSelections);
+    qDebug()<<"MyMdi::unSetTextColor()start";
+    QList<QTextEdit::ExtraSelection> extraSelections;
+    QTextEdit::ExtraSelection extraSelection;
+    extraSelection.cursor = this->textCursor();
+    extraSelection.format = textCursor().charFormat();
+    extraSelection.format.setBackground(Qt::white);
+    extraSelection.format.setForeground(Qt::black);
+    extraSelection.format.setProperty(QTextFormat::FullWidthSelection,true);
+    extraSelections.append(extraSelection);
+    setExtraSelections(extraSelections);
+    qDebug()<<"MyMdi::unSetTextColor()end";
 }
-QList<int> MyMdi::Find(QString searchString, QTextDocument::FindFlags options)
+QList<QString> MyMdi::Find(QString searchString, QTextDocument::FindFlags options, bool ifMarkNeed)
 {
-    qDebug()<<"MyMdi::Find() start";
+    qDebug()<<"MyMdi::Find()";
     qDebug()<<"searchString = "<<searchString;
-    QList<int> lineNoHolder;
-    QTextCursor cursor(textDocument);
-    QTextCharFormat colorFormat(cursor.charFormat());
-    colorFormat.setBackground(Qt::green);
-    textcursor = textCursor();
-    textcursor.movePosition(QTextCursor::Start);
-    textcursor = textDocument->find(searchString, textcursor, options);
+    QList<QString> lineNoHolder;
+    this->searchString = searchString;
 
-    QList<QTextEdit::ExtraSelection> extraSelections = this->extraSelections();
-    if(!textcursor.isNull())
+    QString lineContent;
+    if(ifMarkNeed)
     {
-        QTextEdit::ExtraSelection extraSelection;
-        extraSelection.cursor = textcursor;
-        //extraSelection.cursor.clearSelection();
-        extraSelection.format = colorFormat;
-        extraSelections.append(extraSelection);
+        QTextCursor cursor(textDocument);
+        QTextCharFormat colorFormat(cursor.charFormat());
+        colorFormat.setBackground(Qt::green);
+        textcursor = textCursor();
+        textcursor.movePosition(QTextCursor::Start);
+        textcursor = textDocument->find(searchString, textcursor, options);
 
+        QList<QTextEdit::ExtraSelection> extraSelections = this->extraSelections();
+        if(!textcursor.isNull())
+        {
+            QTextEdit::ExtraSelection extraSelection;
+            extraSelection.cursor = textcursor;
+            extraSelection.format = colorFormat;
+            extraSelections.append(extraSelection);
+
+            while (!textcursor.isNull() && !textcursor.atEnd())
+            {
+                textcursor = textDocument->find(searchString, textcursor, options);
+                if (!textcursor.isNull())
+                {
+                    extraSelection.cursor = textcursor;
+                    //extraSelection.cursor.clearSelection();
+                    extraSelection.format = colorFormat;
+                    extraSelections.append(extraSelection);
+                }
+            }
+        }
+        setExtraSelections(extraSelections);
+        return lineNoHolder;
+    }
+    else
+    {
+        textcursor = textCursor();
+        textcursor.movePosition(QTextCursor::Start);
         while (!textcursor.isNull() && !textcursor.atEnd())
         {
             textcursor = textDocument->find(searchString, textcursor, options);
-            lineNoHolder.append(textcursor.blockNumber());
             if (!textcursor.isNull())
             {
-                extraSelection.cursor = textcursor;
-                //extraSelection.cursor.clearSelection();
-                extraSelection.format = colorFormat;
-                extraSelections.append(extraSelection);
+                int lineNo = textcursor.blockNumber() + 1;
+                lineContent = tr("    Line %1: %2").arg(lineNo).arg(textcursor.block().text());
+                lineNoHolder.append(lineContent);
             }
         }
+        return lineNoHolder;
     }
-    setExtraSelections(extraSelections);
-    qDebug()<<"MyMdi::Find() end";
-    return lineNoHolder;
     /*QTextEdit::ExtraSelection extraSelection_block;
     textcursor = textCursor();
     textcursor.movePosition(QTextCursor::StartOfLine);
@@ -491,9 +517,6 @@ void MyMdi::FindNext(QString searchString,
                      bool searchDirection)
 {
     qDebug()<<"MyMdi::FindNext()";
-    qDebug()<<"SearchString ="<<searchString;
-    qDebug()<<"options = "<<options;
-
     unSetTextColor();
     QTextCursor cursor(textDocument);
     QTextCharFormat colorFormat(cursor.charFormat());
@@ -522,7 +545,7 @@ void MyMdi::FindNext(QString searchString,
             textcursor.movePosition(QTextCursor::WordRight, QTextCursor::MoveAnchor,0);
         }
         qDebug()<<4;
-        textcursor.clearSelection();
+        //textcursor.clearSelection();
         setTextCursor(textcursor);
         qDebug()<<5;
     }
@@ -566,12 +589,11 @@ void MyMdi::FindNext(QString searchString,
         //QMessageBox::information(this, "Find",tr("Can't find the text \n \"%1\"").arg(searchString));
     }
     qDebug()<<8;
-    Find(searchString, options);
+    Find(searchString, options, true);
     QList<QTextEdit::ExtraSelection> extraSelections = this->extraSelections();
     removeDuplicateExtraSelection(extraSelection_block);
     extraSelections.append(extraSelection_block);
     setExtraSelections(extraSelections);
-
     /*
     if(isFirstSearch)
     {
@@ -627,9 +649,30 @@ void MyMdi::FindNext(QString searchString,
     qDebug()<<8;
     setExtraSelections(extraSelections);*/
 }
-int MyMdi::GetTotalCount()
+int MyMdi::GetTotalCount(QTextDocument::FindFlags options)
 {
     qDebug()<<"MyMdi::GetTotalCount()";
+    totalCount = 0;
+    QTextCursor cursor = this->textCursor();
+    cursor.movePosition(QTextCursor::Start);
+    qDebug()<<"searchString = "<<searchString;
+    while (!cursor.isNull() && !cursor.atEnd())
+    {
+        cursor = this->document()->find(searchString, cursor, options);
+        if (!cursor.isNull())
+        {
+            totalCount++;
+            qDebug()<<"totalCount = "<<totalCount;
+        }
+    }
+
+    QMessageBox message;
+    message.setWindowTitle("Count");
+    message.setText(tr("%1 match(es) to occurrence(s)").arg(totalCount));
+    message.setParent(this);
+    message.setWindowFlags(Qt::Drawer);
+    message.exec();
+
     return totalCount;
 }
 void MyMdi::MarkLines(QList<QPoint> lineHolder)
@@ -668,10 +711,10 @@ void MyMdi::clearMark()
     unSetTextColor();
 }
 
-QList<int> MyMdi::searchCurrentFile(QString searchString)
+QList<QString> MyMdi::searchCurrentFile(QString searchString)
 {
     qDebug()<<"MyMdi::searchCurrentFile()";
-    return Find(searchString, QTextDocument::FindWholeWords);
+    return Find(searchString, QTextDocument::FindWholeWords, true);
 }
 
 void MyMdi::resetCursorPosition()
@@ -694,4 +737,14 @@ void MyMdi::removeDuplicateExtraSelection(QTextEdit::ExtraSelection extraSelecti
         }
         break;
     }*/
+}
+
+QString MyMdi::getFilePath()
+{
+    return CurrFilePath;
+}
+
+QTextBlock MyMdi::getFirstVisibleBlock()
+{
+    return this->firstVisibleBlock();
 }

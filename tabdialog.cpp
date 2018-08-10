@@ -32,6 +32,7 @@ TabDialog::TabDialog(QString searchString, int tabIndex, QWidget *parent):QDialo
     connect(tabWidget,SIGNAL(currentChanged(int)),this, SLOT(updateWindowTitle(int)));
 
     connect(findtab, SIGNAL(notifyTabWidget(int)), this,SLOT(setTabAlpha(int)));
+    connect(findtab, SIGNAL(notifyTabWidget(int)), this,SLOT(setTabAlpha(int)));
 
     QVBoxLayout *mainLayout = new QVBoxLayout;
     mainLayout->addWidget(tabWidget);
@@ -111,19 +112,52 @@ QString FindTab::getSearchString()
 void FindTab::CountClicked()
 {
     qDebug()<<"FindTab::CountClicked";
-    emit notifyCountClicked();
+    if(checkBoxMatchWholeWord->isChecked()&& checkBoxMatchUpperLower->isChecked())
+    {
+        emit notifyCountClicked(true, true);
+    }
+    else if(checkBoxMatchUpperLower->isChecked())
+    {
+        emit notifyCountClicked(false, true);
+    }
+    else
+    {
+        emit notifyCountClicked(true, false);
+    }
 }
 
 void FindTab::SearchAllFile()
 {
     qDebug()<<"FindTab::SearchAllFile";
-    emit notifySearchAllOpenedFileClicked();
+    if(checkBoxMatchWholeWord->isChecked()&& checkBoxMatchUpperLower->isChecked())
+    {
+        emit notifySearchAllOpenedFileClicked(true, true);
+    }
+    else if(checkBoxMatchUpperLower->isChecked())
+    {
+        emit notifySearchAllOpenedFileClicked(false, true);
+    }
+    else
+    {
+        emit notifySearchAllOpenedFileClicked(true, false);
+    }
 }
 
 void FindTab::SearchCurrentFile()
 {
     qDebug()<<"FindTab::SearchCurrentFile";
-    emit notifySearchCurrentOpenedFileClicked();
+    if(checkBoxMatchWholeWord->isChecked()&& checkBoxMatchUpperLower->isChecked())
+    {
+        emit notifySearchCurrentOpenedFileClicked(true, true);
+    }
+    else if(checkBoxMatchUpperLower->isChecked())
+    {
+        emit notifySearchCurrentOpenedFileClicked(false, true);
+    }
+    else
+    {
+        emit notifySearchCurrentOpenedFileClicked(true, false);
+    }
 }
 
 void FindTab::cancel()
@@ -135,7 +169,6 @@ void FindTab::cancel()
 void TabDialog::focusInEvent(QFocusEvent *e)
 {
     qDebug()<<"TabDialog::focusInEvent";
-    qDebug()<<currentAlpa;
     this->setWindowOpacity(1 - (double)currentAlpa/100);
     QDialog::focusInEvent(e);
 }
@@ -282,7 +315,7 @@ FindTab::FindTab(QString searchString)
     connect(buttonSearchAllOpenFile, &QPushButton::clicked, this, &FindTab::SearchAllFile);
     QPushButton *buttonSearchCurrentFile = new QPushButton(tr("Search Current File"));
     buttonSearchCurrentFile->setFixedWidth(130);
-    connect(buttonSearchAllOpenFile, &QPushButton::clicked, this, &FindTab::SearchCurrentFile);
+    connect(buttonSearchCurrentFile, &QPushButton::clicked, this, &FindTab::SearchCurrentFile);
     QPushButton *buttonCancel = new QPushButton(tr("Cancel"));
     connect(buttonCancel, &QPushButton::clicked, this, &FindTab::cancel);
     buttonCancel->setFixedWidth(130);

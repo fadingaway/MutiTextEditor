@@ -15,7 +15,7 @@ class MyPlainTextEdit;
 class MyDockWidget:public QDockWidget
 {
 public:
-    explicit MyDockWidget(const QString &title, QWidget *parent = Q_NULLPTR, Qt::WindowFlags flags = Qt::WindowFlags());
+    MyDockWidget(QString title, QWidget *parent = 0);
     void LeftLinePaintEvent(QPaintEvent *event);
     void onPlusMinusMouseClicked(QMouseEvent *event);
     void updateTextArea(QList<QString> result);
@@ -25,17 +25,22 @@ public:
     void mouseMoveEvent(QMouseEvent *event);
     void mousePressEvent(QMouseEvent *event);
 
-private:
+    void updateLeftColumnArea(int value);
+    void getDoubleClickBlockText(QString);
+    void highlightCurrentLine();
+    void paintLine();
+    void markSearchString();
+
     MyPlainTextEdit *textEdit;
+private:
+    QString searchString = 0;
     QList<QString> searchResult;
     QList<QString> plusCaseSearchResult;
     QList<QString> currentSearchResult;
     QList<QString> lineCordinateList;
     QList<viewHolder> viewholders;
     QString doubleClickBlockText;
-public slots:
-    void updateLeftColumnArea(int value);
-    void getDoubleClickBlockText(QString);
 };
+
 
 #endif // MYDOCKWIDGET_H

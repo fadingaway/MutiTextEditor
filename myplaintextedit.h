@@ -23,6 +23,7 @@ public slots:
     void paintLine(QList<QString> List);
 signals:
     void blockDoubleClick(QString);
+    void notifyLineLocate(QString filePath, int lineNo);
 private:
     QTextBlock currentBlock;
     QList<QString> lineList;

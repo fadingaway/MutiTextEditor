@@ -7,7 +7,7 @@
 #include "QTextCursor"
 #include "QDockWidget"
 #include "QObject"
-
+#include "QTextBlock"
 QT_BEGIN_NAMESPACE
 class QPrinter;
 class QPaintEvent;
@@ -41,6 +41,8 @@ public slots:
     void highlightCurrentLine();
     void resizeEvent(QResizeEvent *e);
     void setSearchString();
+    void setSearchStringFromTab(QString text);
+    QTextBlock getFirstVisibleBlock();
 
 public:
     explicit MyMdi(QWidget *parent = 0);
@@ -48,19 +50,21 @@ public:
     void SetCurrFileName(QString fileName);
     bool GetSaveStatus();
     bool GetIsUntitled();
-    int GetTotalCount();
+    int GetTotalCount(QTextDocument::FindFlags options);
     void lineNumberPaintEvent(QPaintEvent *event);
     int lineNumberWidth();
     void MarkLines(QList<QPoint> lineHolder);
     void highlightSearchString();
     void clearMark();
-    QList<int> searchCurrentFile(QString searchString);
+    QList<QString> searchCurrentFile(QString searchString);
     void resetCursorPosition();
     void removeDuplicateExtraSelection(QTextEdit::ExtraSelection extraSelection);
+    QString getFilePath();
     QString CurrFileName;
     QString CurrFilePath;
     bool IsUntitled;
     bool IsFileSaved;
+    bool IsDefaultWindow = false;
     QTextDocument *textDocument;
     QString searchString = 0;
     bool isFirstSearch = true;
@@ -69,7 +73,7 @@ public:
     QWidget *lineNumberArea;
     QTextCursor currentCursor;
 
-    QList<int> Find(QString searchString,QTextDocument::FindFlags options);
+    QList<QString> Find(QString searchString,QTextDocument::FindFlags options, bool ifMarkNeed);
 
     void FindNext(QString searchString,QTextDocument::FindFlags options, bool searchLoop, bool searchDirection);
 };

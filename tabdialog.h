@@ -38,15 +38,16 @@ class FindTab:public QWidget
 public:
     explicit FindTab(QString searchString = 0);
     QString getSearchString();
+    QComboBox *comboBox;
 signals:
     void notifyTabWidget(int value);
     void notifySearchAllClicked(QString searchString, bool markLine, bool highlightResult, bool clearMark);
     void notifySearchNextClicked(QString searchString, bool matchWholeWord, bool matchCaseSencitive,
                                  bool searchInLoop, bool searchDirection);
     void ClearMarkClicked();
-    void notifyCountClicked();
-    void notifySearchAllOpenedFileClicked();
-    void notifySearchCurrentOpenedFileClicked();
+    void notifyCountClicked(bool matchWholeWord, bool matchCaseSencitive);
+    void notifySearchAllOpenedFileClicked(bool matchWholeWord, bool matchCaseSencitive);
+    void notifySearchCurrentOpenedFileClicked(bool matchWholeWord, bool matchCaseSencitive);
     void notifyCancelClicked();
 public slots:
     void valueChange(int value);
@@ -58,7 +59,6 @@ public slots:
     void SearchCurrentFile();
     void cancel();
 private:
-    QComboBox *comboBox;
     QCheckBox *checkBoxMarkLine;
     QCheckBox *checkBoxHighlightSearchResult;
     QCheckBox *checkBoxClearLastMark;

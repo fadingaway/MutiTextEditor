@@ -117,8 +117,23 @@ QRectF MyPlainTextEdit::getblockBoundingGeometry(QTextBlock &block)
 
 void MyPlainTextEdit::mouseDoubleClickEvent(QMouseEvent *event)
 {
+    qDebug()<<"MyPlainTextEdit::mouseDoubleClickEvent() start";
     QPlainTextEdit::mouseDoubleClickEvent(event);
     QTextCursor cursor = this->textCursor();
     QTextBlock block = cursor.block();
     emit blockDoubleClick(block.text());
+
+    int lineNo = block.text().mid(9, block.text().indexOf(':')-9).toInt();
+    QString filePath = 0;
+    while(block.text().left(4) == QString("    "))
+    {
+        block = block.previous();
+    }
+    if(block.text().left(2) == QString("  "))
+    {
+        filePath = block.text().mid(2, block.text().indexOf('(') - 2);
+        qDebug()<<"filePath = "<<filePath;
+    }
+    emit notifyLineLocate(filePath, lineNo);
+    qDebug()<<"MyPlainTextEdit::mouseDoubleClickEvent() end";
 }

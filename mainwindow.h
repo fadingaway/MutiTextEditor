@@ -7,6 +7,8 @@
 #include "QMdiArea"
 #include "QMouseEvent"
 #include "QSignalMapper"
+#include "mydockwidget.h"
+
 class TabDialog;
 class QMouseEvent;
 class QMdiArea;
@@ -14,6 +16,7 @@ class QMdiSubWindow;
 class QTextDocument;
 class MyMdi;
 class QSignalMapper;
+class MyDockWidget;
 class MainWindow : public QMainWindow
 {
     Q_OBJECT
@@ -27,7 +30,7 @@ public:
     //void ReadSetting();
     //void WriteSetting();
     //void showRecent();
-    //void closeEvent();
+    void closeEvent(QCloseEvent *event);
     void createStatusBar();
     QStringList ReadHistory();
     void UpdateHistory(QString fileName);
@@ -36,6 +39,8 @@ public:
     void mouseDoubleClickEvent(QMouseEvent *event);
     void SetmdiWindowCnt(int windowCount);
     int GetmdiWindowCnt();
+    void setSearchString();
+
 signals:
     void mdiWindowCntChanged();
 public slots:
@@ -82,10 +87,14 @@ public slots:
     void FindPrev();
     void FindAndReplace();
     void ColumnLocate();
+    void TotalCount(bool matchWholeWord, bool matchCaseSencitive);
     //void LocateBrace();
     /*------Menu Search----*/
-
-    void gotoLine(int lineNo);
+    void findAllFiles(bool MatchWholeWord, bool MatchUpperLower);
+    void gotoLine(QString filePath, int lineNo);
+    void setDockWidgetStatus();
+    void setWindowsTitle(QMdiSubWindow *subWindow);
+    void setTabBarWidth();
 private:
     QMdiArea mdiArea;
     int totalMdiWindowCnt = 0;
@@ -117,7 +126,9 @@ private:
     QString searchString = 0;
     QString prevSearchString = 0;
     QSignalMapper *mapper;
+    QString dockWidgetSearchString = 0;
 
+    bool IsDockWidgetInitialized = false;
     enum TabInd{
         tabFind = 0,
         tabReplace = 1,
@@ -125,6 +136,7 @@ private:
     };
 public:
     TabDialog *dialog;
+    MyDockWidget *myDockWidget;
 };
 
 #endif // MAINWINDOW_H
