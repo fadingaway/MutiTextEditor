@@ -208,8 +208,8 @@ bool MyMdi::LoadFile(QString filename)
     IsFileSaved = true;
     setWindowTitle(CurrFileName);
     resetCursorPosition();
-    return true;
     qDebug()<<"MyMdi::LoadFile() end";
+    return true;
 }
 bool MyMdi::Save()
 {
@@ -220,19 +220,22 @@ bool MyMdi::Save()
     }
     else
     {
-        return SaveFile(CurrFileName);
+        if(!IsFileSaved)
+        {
+            return SaveFile(CurrFileName);
+        }
     }
 }
 bool MyMdi::SaveAs()
 {
     qDebug()<<"MyMdi::SaveAs()";
-    CurrFileName = QFileDialog::getSaveFileName(this,
+    QString FileName = QFileDialog::getSaveFileName(this,
                                                 tr("Save As"),
                                                 CurrFilePath,
                                                 tr("Text Document(*.txt)"));
-    if(!CurrFileName.isEmpty())
+    if(!FileName.isEmpty())
     {
-        return SaveFile(CurrFileName);
+        return SaveFile(FileName);
     }
     else
     {
@@ -290,13 +293,13 @@ void MyMdi::fileModified()
     setWindowModified(true);
     IsFileSaved = false;
 
-    if(CurrFilePath.isEmpty())
+    if(CurrFileName.isEmpty())
     {
-        setWindowTitle("*"+CurrFileName);
+        setWindowTitle("*"+CurrFilePath);
     }
     else
     {
-        setWindowTitle("*"+CurrFilePath);
+        setWindowTitle("*"+CurrFileName);
     }
 }
 void MyMdi::closeEvent(QCloseEvent *event)

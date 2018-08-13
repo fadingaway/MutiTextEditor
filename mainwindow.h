@@ -24,7 +24,9 @@ class MainWindow : public QMainWindow
 public:
     explicit MainWindow(QWidget *parent = 0);
     void UpdateMenus();
-    void CreateMenus();
+    void CreateFileMenus();
+    void CreateEditMenus();
+    void CreateSearchMenus();
     void CreateAction();
     MyMdi *FindChildSubWindow(QString filename);
     //void ReadSetting();
@@ -95,6 +97,9 @@ public slots:
     void setDockWidgetStatus();
     void setWindowsTitle(QMdiSubWindow *subWindow);
     void setTabBarWidth();
+    void setSaveActionStatus();
+    void setTextToUpper();
+    void setTextToLower();
 private:
     QMdiArea mdiArea;
     int totalMdiWindowCnt = 0;
@@ -122,13 +127,22 @@ private:
     QAction *ActionPaste;
     QAction *ActionSelectAll;
     QAction *historyAction;
+    QAction *separatorBefore;
+    QAction *OpenAllRecent;
+    QAction *ClearRecent;
+    QAction *separatorAfter;
 
     QString searchString = 0;
     QString prevSearchString = 0;
     QSignalMapper *mapper;
     QString dockWidgetSearchString = 0;
 
+    QMenu *FileMenu;
+    QMenu *editMenu;
+    QMenu *searchMenu;
+    bool IsHistoryCreated = false;
     bool IsDockWidgetInitialized = false;
+
     enum TabInd{
         tabFind = 0,
         tabReplace = 1,

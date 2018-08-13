@@ -24,6 +24,8 @@
 #include "QSignalMapper"
 #include "mydockwidget.h"
 #include "QMdiArea"
+#include "QClipboard"
+#include "QApplication"
 const static QString RENCENT_FILE_KEY = "Recent File History";
 MainWindow::MainWindow(QWidget *parent) : mdiArea(new QMdiArea)
 {
@@ -42,7 +44,9 @@ MainWindow::MainWindow(QWidget *parent) : mdiArea(new QMdiArea)
 
     setCentralWidget(&mdiArea);
     //ReadSetting();
-    CreateMenus();
+    CreateFileMenus();
+    CreateEditMenus();
+    CreateSearchMenus();
     createStatusBar();
     setWindowTitle(tr("Muti-Text Document Editor"));
     connect(this, &MainWindow::mdiWindowCntChanged, this, &MainWindow::createDefaultMdiWindow);
@@ -57,7 +61,6 @@ void MainWindow::setTabBarWidth()
     qDebug()<<"MainWindow::setTabBarWidth";
     int totalMdiWindowCnt = mdiArea.subWindowList().size();
     QString style = tr("QTabBar{max-width:%1px}").arg(250*totalMdiWindowCnt);
-    qDebug()<<"style = "<<style;
     mdiArea.setStyleSheet(style);
 }
 
@@ -99,8 +102,11 @@ int MainWindow::GetmdiWindowCnt()
 void MainWindow::setSearchString()
 {
     qDebug()<<"setSearchString()";
-    GetActiveMdiWindow()->setSearchStringFromTab(dialog->findtab->comboBox->currentText());
-    searchString = dialog->findtab->comboBox->currentText();
+    if(GetActiveMdiWindow())
+    {
+        GetActiveMdiWindow()->setSearchStringFromTab(dialog->findtab->comboBox->currentText());
+        searchString = dialog->findtab->comboBox->currentText();
+    }
 }
 
 void MainWindow::findAllFiles(bool MatchWholeWord, bool MatchUpperLower)
@@ -109,7 +115,6 @@ void MainWindow::findAllFiles(bool MatchWholeWord, bool MatchUpperLower)
     QList<QMdiSubWindow *> myMdiList = mdiArea.subWindowList();
     QList<QString> searchResult;
     searchString = dialog->findtab->comboBox->currentText();
-    qDebug()<<"searchString = "<<searchString;
     dockWidgetSearchString = searchString;
     int totalFound = 0;
     int totalFileFound = 0;
@@ -182,9 +187,44 @@ MyMdi* MainWindow::createSubWindow()
     qDebug()<<"createSubWindow()";
     MyMdi *child = new MyMdi;
     mdiArea.addSubWindow(child);
+    connect(child, &MyMdi::textChanged, this, &MainWindow::setSaveActionStatus);
     emit mdiWindowCntChanged();
     return child;
 }
+
+void MainWindow::setSaveActionStatus()
+{
+    ActionSave->setEnabled(true);
+}
+
+void MainWindow::setTextToUpper()
+{
+    MyMdi *mymdi = GetActiveMdiWindow();
+    if(mymdi)
+    {
+        QTextCursor cursor = mymdi->textCursor();
+        if(cursor.hasSelection())
+        {
+            QString text = cursor.selectedText().toUpper();
+            mymdi->insertPlainText(text);
+        }
+    }
+}
+
+void MainWindow::setTextToLower()
+{
+    MyMdi *mymdi = GetActiveMdiWindow();
+    if(mymdi)
+    {
+        QTextCursor cursor = mymdi->textCursor();
+        if(cursor.hasSelection())
+        {
+            QString text = cursor.selectedText().toLower();
+            mymdi->insertPlainText(text);
+        }
+    }
+}
+
 void MainWindow::NewFile()
 {
     qDebug()<<"MainWindow::NewFile()";
@@ -263,7 +303,7 @@ void MainWindow::Openfile(QString fileName)
                 if(child->LoadFile(fileName))
                 {
                     child->show();
-                    child->setWindowTitle(fileName);
+                    //child->setWindowTitle(fileName);
                     //this->setWindowTitle(child->getFilePath());
                     UpdateHistory(fileName);
                 }
@@ -288,7 +328,7 @@ void MainWindow::Openfile(QString fileName)
             if(child->LoadFile(fileName))
             {
                 child->show();
-                child->setWindowTitle(fileName);
+                //child->setWindowTitle(fileName);
                 //this->setWindowTitle(child->getFilePath());
                 UpdateHistory(fileName);
             }
@@ -319,14 +359,14 @@ void MainWindow::ReloadFile()
         {
             mymdi->LoadFile(mymdi->CurrFilePath);
             this->setWindowTitle(mymdi->getFilePath());
-            UpdateHistory(mymdi->CurrFileName);
+            UpdateHistory(mymdi->getFilePath());
         }
     }
     else
     {
         mymdi->LoadFile(mymdi->CurrFilePath);
         this->setWindowTitle(mymdi->getFilePath());
-        UpdateHistory(mymdi->CurrFileName);
+        UpdateHistory(mymdi->getFilePath());
     }
 }
 
@@ -339,16 +379,14 @@ void MainWindow::SaveAsCopy()
 void MainWindow::Save()
 {
     qDebug()<<"MainWindow::Save()";
-    if(GetActiveMdiWindow())
+    MyMdi *mymdi = GetActiveMdiWindow();
+    if(mymdi)
     {
-        if(GetActiveMdiWindow()->Save())
+        if(mymdi->Save())
         {
             statusBar()->showMessage(tr("File Saved"), 2000);
-            this->setWindowTitle(GetActiveMdiWindow()->getFilePath());
-        }
-        if(GetActiveMdiWindow())
-        {
-            UpdateHistory(GetActiveMdiWindow()->GetCurrFileName());
+            this->setWindowTitle(mymdi->getFilePath());
+            UpdateHistory(mymdi->getFilePath());
         }
     }
     else
@@ -360,12 +398,13 @@ void MainWindow::Save()
 void MainWindow::SaveAs()
 {
     qDebug()<<"MainWindow::SaveAs()";
-    if(GetActiveMdiWindow()->SaveAs()&&GetActiveMdiWindow())
+    MyMdi *mymdi = GetActiveMdiWindow();
+    if(mymdi && mymdi->SaveAs())
     {
         statusBar()->showMessage(tr("File Saved"), 2000);
-        this->setWindowTitle(GetActiveMdiWindow()->getFilePath());
+        this->setWindowTitle(mymdi->getFilePath());
+        UpdateHistory(mymdi->getFilePath());
     }
-    UpdateHistory(GetActiveMdiWindow()->GetCurrFileName());
 }
 
 void MainWindow::SaveAll()
@@ -377,7 +416,7 @@ void MainWindow::SaveAll()
         subWindowList[i]->activateWindow();
         GetActiveMdiWindow()->Save();
         this->setWindowTitle(GetActiveMdiWindow()->getFilePath());
-        UpdateHistory(GetActiveMdiWindow()->CurrFileName);
+        UpdateHistory(GetActiveMdiWindow()->getFilePath());
     }
 }
 
@@ -386,7 +425,7 @@ void MainWindow::RenameFile()
     qDebug()<<"MainWindow::RenameFile()";
     GetActiveMdiWindow()->RenameFile();
     this->setWindowTitle(GetActiveMdiWindow()->getFilePath());
-    UpdateHistory(GetActiveMdiWindow()->CurrFileName);
+    UpdateHistory(GetActiveMdiWindow()->getFilePath());
 }
 
 void MainWindow::Close()
@@ -473,7 +512,8 @@ void MainWindow::ClearRecentHistory()
 {
     qDebug()<<"MainWindow::ClearRecentHistory()";
     QSettings settings(QCoreApplication::organizationName(), QCoreApplication::applicationName());
-    settings.remove(RENCENT_FILE_KEY);
+    qDebug()<<settings.allKeys();
+    settings.clear();
     RefreshFileMenu();
 }
 
@@ -483,8 +523,7 @@ void MainWindow::Exit()
     for(int i = 0; i < mdiArea.subWindowList().size(); i++)
     {
         mdiArea.activeSubWindow();
-        QString fileName = GetActiveMdiWindow()->GetCurrFileName();
-        UpdateHistory(fileName);
+        UpdateHistory(GetActiveMdiWindow()->getFilePath());
         GetActiveMdiWindow()->close();
         emit mdiWindowCntChanged();
     }
@@ -507,7 +546,6 @@ void MainWindow::RefreshFileMenu()
         }
         else
         {
-            qDebug()<<2;
             if(GetActiveMdiWindow()->document()->isModified())
             {
                 ActionSave->setEnabled(true);
@@ -548,6 +586,55 @@ void MainWindow::RefreshFileMenu()
         ActionCloseOtherFiles->setEnabled(false);
         ActionCloseAllFile->setEnabled(false);
     }
+
+    QStringList HistoryFileList = ReadHistory();
+    if(HistoryFileList.size() ==0 )
+    {
+        if(IsHistoryCreated)
+        {
+            QList<QAction *> actionList = FileMenu->actions();
+            for(int i = 0; i<actionList.size(); i++)
+            {
+                if(actionList.at(i)->data() == QString("History file list"))
+                {
+                    FileMenu->removeAction(actionList.at(i));
+                    qDebug()<<"Remove Done";
+                }
+            }
+        }
+        separatorAfter->setVisible(false);
+        OpenAllRecent->setVisible(false);
+        ClearRecent->setVisible(false);
+
+    }
+    else if(HistoryFileList.size() >0)
+    {
+        if(IsHistoryCreated)
+        {
+            QList<QAction *> actionList = FileMenu->actions();
+            for(int i = 0; i<actionList.size(); i++)
+            {
+                if(actionList.at(i)->data() == QString("History file list"))
+                {
+                    FileMenu->removeAction(actionList.at(i));
+                    qDebug()<<"Remove Done";
+                }
+            }
+        }
+        for( int i = 0; i < HistoryFileList.size(); i++)
+        {
+            QString filePath = HistoryFileList.at(i);
+            historyAction = FileMenu->addAction(QString::number(i+1) + ":" + filePath);
+            historyAction->setData(tr("History file list"));
+            mapper->setMapping(historyAction, filePath);
+            connect(historyAction, SIGNAL(triggered()), mapper, SLOT(map()));
+            FileMenu->insertAction(separatorAfter, historyAction);
+            IsHistoryCreated = true;
+        }
+        separatorAfter->setVisible(true);
+        OpenAllRecent->setVisible(true);
+        ClearRecent->setVisible(true);
+    }
 }
 
 MyMdi *MainWindow::GetActiveMdiWindow()
@@ -556,23 +643,16 @@ MyMdi *MainWindow::GetActiveMdiWindow()
     QMdiSubWindow *subWindow = mdiArea.activeSubWindow();
     if(subWindow)
     {
-        qDebug()<<0;
         return qobject_cast<MyMdi *>(subWindow->widget());
     }
     else
     {
-        mdiArea.setActiveSubWindow(mdiArea.subWindowList().at(0));
-        mdiArea.show();
-        subWindow = mdiArea.activeSubWindow();
-
-        if(subWindow)
+        if(mdiArea.subWindowList().size() ==1)
         {
-            qDebug()<<1111;
-            return qobject_cast<MyMdi *>(subWindow->widget());
+            return qobject_cast<MyMdi *>(mdiArea.subWindowList().at(0)->widget());
         }
         else
         {
-            qDebug()<<2222;
             return 0;
         }
     }
@@ -609,6 +689,7 @@ void MainWindow::UpdateHistory(QString fileName)
         oldFileList.append(fileName);
     }
     settings.beginWriteArray(RENCENT_FILE_KEY);
+    settings.remove(RENCENT_FILE_KEY);
     for (int i = 0; i<oldFileList.size(); i++)
     {
         settings.setArrayIndex(i);
@@ -617,11 +698,10 @@ void MainWindow::UpdateHistory(QString fileName)
     settings.endArray();
 }
 
-void MainWindow::CreateMenus()
+void MainWindow::CreateFileMenus()
 {
-    qDebug()<<"MainWindow::CreateMenus()";
-    /*--------File Menu Start -------*/
-    QMenu *FileMenu = menuBar()->addMenu(tr("&File"));
+    qDebug()<<"MainWindow::CreateFileMenus()start";
+    FileMenu = menuBar()->addMenu(tr("File(&F)"));
     connect(FileMenu, &QMenu::aboutToShow, this, &MainWindow::RefreshFileMenu);
     QToolBar *toolBar = addToolBar(tr("File"));
 
@@ -643,32 +723,31 @@ void MainWindow::CreateMenus()
     ActionSave->setStatusTip(tr("save the file"));
     toolBar->addAction(ActionSave);
 
-    ActionSaveAs = FileMenu->addAction(tr("Save As"));
-    ActionSaveAs->setShortcut(QKeySequence::SaveAs);
-    connect(ActionSaveAs, &QAction::triggered, this, &MainWindow::SaveAs);
+    ActionSaveAs = FileMenu->addAction(tr("Save As"), this, &MainWindow::SaveAs, QKeySequence::SaveAs);
     ActionSaveAs->setStatusTip(tr("Save file to another name or distination"));
+    toolBar->addAction(ActionSaveAs);
 
     ActionSaveCopy = FileMenu->addAction(tr("Save Copy Text As"));
     connect(ActionSaveCopy, &QAction::triggered, this, &MainWindow::SaveCopyText);
     ActionSaveCopy->setStatusTip(tr("Save copy text to another file"));
 
-    ActionSaveAll = FileMenu->addAction(tr("save All the file"),this, &MainWindow::SaveAll, QKeySequence("ctrl + shift + s"));
-    ActionSaveAll->setStatusTip(tr("save all the file"));
+    ActionSaveAll = FileMenu->addAction(tr("Save All Files"),this, &MainWindow::SaveAll, QKeySequence("ctrl + shift + s"));
+    ActionSaveAll->setStatusTip(tr("Save All File"));
 
-    ActionRename = FileMenu->addAction(tr("Rename the file"));
+    ActionRename = FileMenu->addAction(tr("Rename File"));
     connect(ActionRename, &QAction::triggered, this, &MainWindow::RenameFile);
-    ActionRename->setStatusTip(tr("Rename the file"));
+    ActionRename->setStatusTip(tr("Rename the File"));
 
-    ActionCloseFile = FileMenu->addAction(tr("close"));
+    ActionCloseFile = FileMenu->addAction(tr("Close"));
     ActionCloseFile->setShortcut(QKeySequence::Close);
     connect(ActionCloseFile, &QAction::triggered, this, &MainWindow::Close);
-    ActionCloseFile->setStatusTip(tr("Close the file"));
+    ActionCloseFile->setStatusTip(tr("Close file"));
 
-    ActionCloseAllFile = FileMenu->addAction(tr("close All"));
+    ActionCloseAllFile = FileMenu->addAction(tr("Close All"));
     connect(ActionCloseAllFile, &QAction::triggered, this, &MainWindow::CloseAll);
     ActionCloseAllFile->setStatusTip(tr("Close All the files"));
 
-    ActionCloseOtherFiles = FileMenu->addAction(tr("close others"));
+    ActionCloseOtherFiles = FileMenu->addAction(tr("Close Others"));
     connect(ActionCloseOtherFiles, &QAction::triggered, this, &MainWindow::CloseOthers);
     ActionCloseOtherFiles->setStatusTip(tr("Close All the files except current one"));
 
@@ -678,53 +757,64 @@ void MainWindow::CreateMenus()
 
     FileMenu->addSeparator();
 
-    ActionPrint = FileMenu->addAction(tr("Print"));
-    connect(ActionPrint, &QAction::triggered, this, &MainWindow::Print);
+    ActionPrint = FileMenu->addAction(tr("Print"),this, &MainWindow::Print,QKeySequence::Print);
     ActionPrint->setStatusTip(tr("Print the file"));
 
     ActionPrintNow = FileMenu->addAction(tr("Print Now"));
     connect(ActionPrintNow, &QAction::triggered, this, &MainWindow::PrintNow);
-    ActionPrintNow->setStatusTip(tr("Print the file Now"));
+    ActionPrintNow->setStatusTip(tr("Print the File Now"));
 
-    FileMenu->addSeparator();
+    separatorBefore = FileMenu->addSeparator();
     
     QStringList HistoryFileList = ReadHistory();
     for( int i = 0; i < HistoryFileList.size(); i++)
     {
         QString filePath = HistoryFileList.at(i);
         historyAction = FileMenu->addAction(QString::number(i+1) + ":" + filePath);
+        historyAction->setData(tr("History file list"));
         mapper->setMapping(historyAction, filePath);
         connect(historyAction, SIGNAL(triggered()), mapper, SLOT(map()));
+        IsHistoryCreated = true;
     }
 
+    separatorAfter = FileMenu->addSeparator();
+    
+    OpenAllRecent = FileMenu->addAction("Open All Recent File", this, &MainWindow::OpenAllRecentFile);
+    ClearRecent = FileMenu->addAction("Clear Recent File List", this, &MainWindow::ClearRecentHistory);
+    
     FileMenu->addSeparator();
     
-    FileMenu->addAction("Open All Recent File", this, &MainWindow::OpenAllRecentFile);
-    FileMenu->addAction("Clear recent file list", this, &MainWindow::ClearRecentHistory);
-    
-    FileMenu->addSeparator();
-    
-    ActionExit = FileMenu->addAction(tr("Exit"),this, &MainWindow::Close, QKeySequence("Alt + F4"));
+    ActionExit = FileMenu->addAction(tr("Exit"),this, &MainWindow::Close, QKeySequence::Close);
     ActionExit->setStatusTip(tr("Close the Application"));
-    /*--------File Menu End -------*/
-    
-    
-    /*--------Edit Menu Start -------*/
-    QMenu *editMenu = menuBar()->addMenu(tr("&Edit"));
+    qDebug()<<"MainWindow::CreateFileMenus() end";
+}
+
+void MainWindow::CreateEditMenus()
+{
+    qDebug()<<"MainWindow::CreateEditMenus() start";
+    editMenu = menuBar()->addMenu(tr("Edit(&E)"));
     connect(editMenu, &QMenu::aboutToShow, this, &MainWindow::RefreshEditMenu);
-    ActionUndo = editMenu->addAction(tr("UnDo"), this, &MainWindow::Undo, QKeySequence("ctrl + z"));
-    ActionRedo = editMenu->addAction(tr("Redo"), this, &MainWindow::Redo, QKeySequence("ctrl + y"));
+    ActionUndo = editMenu->addAction(tr("UnDo"), this, &MainWindow::Undo, QKeySequence::Undo);
+    ActionRedo = editMenu->addAction(tr("Redo"), this, &MainWindow::Redo, QKeySequence::Redo);
     editMenu->addSeparator();
 
-    ActionCut = editMenu->addAction(tr("Cut"), this, &MainWindow::Cut, QKeySequence("ctrl + x"));
-    ActionCopy = editMenu->addAction(tr("Copy"), this, &MainWindow::Copy, QKeySequence("ctrl + c"));
-    ActionPaste = editMenu->addAction(tr("Paste"), this, &MainWindow::Paste, QKeySequence("ctrl + v"));
-    ActionSelectAll = editMenu->addAction(tr("Select All"), this, &MainWindow::SelectAll, QKeySequence("ctrl + a"));
+    ActionCut = editMenu->addAction(tr("Cut"), this, &MainWindow::Cut, QKeySequence::Cut);
+    ActionCopy = editMenu->addAction(tr("Copy"), this, &MainWindow::Copy, QKeySequence::Copy);
+    ActionPaste = editMenu->addAction(tr("Paste"), this, &MainWindow::Paste, QKeySequence::Paste);
+    ActionSelectAll = editMenu->addAction(tr("Select All"), this, &MainWindow::SelectAll, QKeySequence::SelectAll);
     editMenu->addSeparator();
 
-    editMenu->addMenu(tr("Copy to Clipbroad"));
+    QClipboard *clipboard = QApplication::clipboard();
+    QMenu *copyMenu = editMenu->addMenu(tr("Copy to Clipbroad"));
+    copyMenu->addAction(tr("Copy File Path And Name"), [=]{ clipboard->setText(GetActiveMdiWindow()->getFilePath());});
+    copyMenu->addAction(tr("Copy File Name"),[=]{clipboard->setText(GetActiveMdiWindow()->GetCurrFileName());});
+    copyMenu->addAction(tr("Copy File Path"), [=]{clipboard->setText(GetActiveMdiWindow()->getFilePath().replace(GetActiveMdiWindow()->GetCurrFileName(),""));});
+
     editMenu->addMenu(tr("Shrink"));
-    editMenu->addMenu(tr("View Transfer"));
+    QMenu *transferMenu = editMenu->addMenu(tr("View Transfer"));
+    transferMenu->addAction(tr("To Upper"),this, &MainWindow::setTextToUpper);
+    transferMenu->addAction(tr("To Lower"),this, &MainWindow::setTextToLower);
+
     editMenu->addMenu(tr("Execute Column"));
     editMenu->addMenu(tr("Comment"));
     editMenu->addMenu(tr("Auto Complete"));
@@ -734,19 +824,24 @@ void MainWindow::CreateMenus()
     editMenu->addAction(tr("Column Edit Mode"));
     editMenu->addSeparator();
 
-    editMenu->addAction(tr("Set as Read Only"));
-    editMenu->addAction(tr("Clear Read Only"));
-    /*--------Edit Menu End -------*/
+    editMenu->addAction(tr("Set as Read Only"), [=]{QFile file(GetActiveMdiWindow()->getFilePath());
+                                                          file.setPermissions(QFileDevice::ReadOwner);});
+    editMenu->addAction(tr("Clear Read Only"),[=]{QFile file(GetActiveMdiWindow()->getFilePath());
+                                                        file.setPermissions(QFileDevice::ReadOther|QFileDevice::WriteOther);});
+    qDebug()<<"MainWindow::CreateEditMenus() end";
+}
 
-    /*--------Search Menu Start -------*/
-    QMenu *searchMenu = menuBar()->addMenu(tr("&Search"));
-    searchMenu->addAction(tr("Search"),this, &MainWindow::Find, QKeySequence("ctrl + F"));
+void MainWindow::CreateSearchMenus()
+{
+    qDebug()<<"MainWindow::CreateSearchMenus() start";
+    searchMenu = menuBar()->addMenu(tr("Search(&S)"));
+    searchMenu->addAction(tr("Search"),this, &MainWindow::Find, QKeySequence::Find);
     searchMenu->addAction(tr("Search in the file"),this, &MainWindow::FindInFile, QKeySequence("ctrl + Shift + F"));
     searchMenu->addAction(tr("Find Next"),this, &MainWindow::FindNext, QKeySequence("F3"));
     searchMenu->addAction(tr("Find Previous"),this, &MainWindow::FindPrev, QKeySequence("Shift + F3"));
     searchMenu->addAction(tr("Quick Find Next"),this, &MainWindow::FindNext, QKeySequence("ctrl + F3"));
     searchMenu->addAction(tr("Quick Find Previous"),this, &MainWindow::FindPrev, QKeySequence("ctrl + Shift + F3"));
-    searchMenu->addAction(tr("Replace"),this, &MainWindow::FindAndReplace, QKeySequence("ctrl + H"));
+    searchMenu->addAction(tr("Replace"),this, &MainWindow::FindAndReplace, QKeySequence::Replace);
     searchMenu->addAction(tr("Special Research"),this, &MainWindow::Find, QKeySequence("ctrl + Alt + I"));
     searchMenu->addAction(tr("Column Locate"),this, &MainWindow::ColumnLocate, QKeySequence("ctrl + G"));
     //searchMenu->addAction(tr("Locate pair brace"),this, &MainWindow::LocateBrace, QKeySequence("ctrl + B"));
@@ -764,43 +859,61 @@ void MainWindow::CreateMenus()
     searchMenu->addAction(tr("Copy Note"));
     searchMenu->addAction(tr("Paste(Replace) Note"));
     searchMenu->addAction(tr("Delete Note"));
-
+    qDebug()<<"MainWindow::CreateSearchMenus() End";
 }
 
 void MainWindow::Undo()
 {
     qDebug()<<"MainWindow::Undo()";
-    GetActiveMdiWindow()->textDocument->undo();
+    if(GetActiveMdiWindow())
+    {
+        GetActiveMdiWindow()->textDocument->undo();
+    }
 }
 
 void MainWindow::Redo()
 {
     qDebug()<<"MainWindow::Redo()";
-    GetActiveMdiWindow()->textDocument->redo();
+    if(GetActiveMdiWindow())
+    {
+        GetActiveMdiWindow()->textDocument->redo();
+    }
 }
 
 void MainWindow::Copy()
 {
     qDebug()<<"MainWindow::Copy()";
-    GetActiveMdiWindow()->copy();
+    if(GetActiveMdiWindow())
+    {
+        GetActiveMdiWindow()->copy();
+    }
 }
 
 void MainWindow::Paste()
 {
     qDebug()<<"MainWindow::Paste()";
-    GetActiveMdiWindow()->paste();
+    if(GetActiveMdiWindow())
+    {
+        GetActiveMdiWindow()->paste();
+    }
 }
 
 void MainWindow::Cut()
 {
     qDebug()<<"MainWindow::Cut()";
-    GetActiveMdiWindow()->cut();
+    if(GetActiveMdiWindow())
+    {
+        GetActiveMdiWindow()->cut();
+    }
 }
 
 void MainWindow::SelectAll()
 {
     qDebug()<<"MainWindow::SelectAll()";
-    GetActiveMdiWindow()->selectAll();
+    if(GetActiveMdiWindow())
+    {
+        GetActiveMdiWindow()->selectAll();
+    }
 }
 
 void MainWindow::RefreshEditMenu()
@@ -862,7 +975,6 @@ void MainWindow::Find()
     QTextCursor cursor;
     if(GetActiveMdiWindow())
     {
-        qDebug()<<"a";
         cursor = GetActiveMdiWindow()->textCursor();
         if(cursor.hasSelection())
         {
@@ -893,7 +1005,6 @@ void MainWindow::Find()
     }
     else
     {
-        qDebug()<<"b";
         dialog = new TabDialog(QString(""),tabFind, this);
         dialog->installEventFilter(this);
         dialog->setFixedSize(480,320);
@@ -911,20 +1022,35 @@ void MainWindow::Find()
 void MainWindow::FindInFile()
 {
     qDebug()<<"MainWindow::FindInFile()";
-
-    QTextCursor cursor = GetActiveMdiWindow()->textCursor();
-    if(cursor.hasSelection())
+    if(GetActiveMdiWindow())
     {
-        dialog = new TabDialog(cursor.selectedText(),tabFile, this);
-        dialog->installEventFilter(this);
-        dialog->setFixedSize(480,320);
-        dialog->setWindowFlags(Qt::Drawer);
-        connect(dialog->documentTab, SIGNAL(notifySearchNextClicked(QString, bool, bool, bool, bool)),
-                               this, SLOT(FindNextFromTabDialog(QString, bool, bool, bool, bool)));
+        QTextCursor cursor = GetActiveMdiWindow()->textCursor();
+        if(cursor.hasSelection())
+        {
+            dialog = new TabDialog(cursor.selectedText(),tabFile, this);
+            dialog->installEventFilter(this);
+            dialog->setFixedSize(480,320);
+            dialog->setWindowFlags(Qt::Drawer);
+            connect(dialog->documentTab, SIGNAL(notifySearchNextClicked(QString, bool, bool, bool, bool)),
+                                   this, SLOT(FindNextFromTabDialog(QString, bool, bool, bool, bool)));
 
-        connect(dialog->findtab, SIGNAL(notifyCountClicked(bool,bool)), this, SLOT(TotalCount(bool, bool)));
-        connect(dialog->findtab->comboBox, &QComboBox::currentTextChanged, this, &MainWindow::setSearchString);
-        dialog->show();
+            connect(dialog->findtab, SIGNAL(notifyCountClicked(bool,bool)), this, SLOT(TotalCount(bool, bool)));
+            connect(dialog->findtab->comboBox, &QComboBox::currentTextChanged, this, &MainWindow::setSearchString);
+            dialog->show();
+        }
+        else
+        {
+            dialog = new TabDialog(QString(""),tabFile, this);
+            dialog->installEventFilter(this);
+            dialog->setFixedSize(480,320);
+            dialog->setWindowFlags(Qt::Drawer);
+            connect(dialog->documentTab, SIGNAL(notifySearchNextClicked(QString, bool, bool, bool, bool)),
+                                   this, SLOT(FindNextFromTabDialog(QString, bool, bool, bool, bool)));
+
+            connect(dialog->findtab, SIGNAL(notifyCountClicked(bool,bool)), this, SLOT(TotalCount(bool, bool)));
+            connect(dialog->findtab->comboBox, &QComboBox::currentTextChanged, this, &MainWindow::setSearchString);
+            dialog->show();
+        }
     }
     else
     {
@@ -944,18 +1070,33 @@ void MainWindow::FindInFile()
 void MainWindow::FindAndReplace()
 {
     qDebug()<<"MainWindow::FindAndReplace()";
-    QTextCursor cursor = GetActiveMdiWindow()->textCursor();
-    if(cursor.hasSelection())
+    if(GetActiveMdiWindow())
     {
-        dialog = new TabDialog(cursor.selectedText(),tabReplace, this);
-        dialog->installEventFilter(this);
-        dialog->setFixedSize(480,320);
-        dialog->setWindowFlags(Qt::Drawer);
-        connect(dialog->replaceTab, SIGNAL(notifySearchNextClicked(QString, bool, bool, bool, bool)),
-                               this, SLOT(FindNextFromTabDialog(QString, bool, bool, bool, bool)));
-        connect(dialog->findtab, SIGNAL(notifyCountClicked(bool,bool)), this, SLOT(TotalCount(bool, bool)));
-        connect(dialog->findtab->comboBox, &QComboBox::currentTextChanged, this, &MainWindow::setSearchString);
-        dialog->show();
+        QTextCursor cursor = GetActiveMdiWindow()->textCursor();
+        if(cursor.hasSelection())
+        {
+            dialog = new TabDialog(cursor.selectedText(),tabReplace, this);
+            dialog->installEventFilter(this);
+            dialog->setFixedSize(480,320);
+            dialog->setWindowFlags(Qt::Drawer);
+            connect(dialog->replaceTab, SIGNAL(notifySearchNextClicked(QString, bool, bool, bool, bool)),
+                                   this, SLOT(FindNextFromTabDialog(QString, bool, bool, bool, bool)));
+            connect(dialog->findtab, SIGNAL(notifyCountClicked(bool,bool)), this, SLOT(TotalCount(bool, bool)));
+            connect(dialog->findtab->comboBox, &QComboBox::currentTextChanged, this, &MainWindow::setSearchString);
+            dialog->show();
+        }
+        else
+        {
+            dialog = new TabDialog(QString(""),tabReplace, this);
+            dialog->installEventFilter(this);
+            dialog->setFixedSize(480,320);
+            dialog->setWindowFlags(Qt::Drawer);
+            connect(dialog->replaceTab, SIGNAL(notifySearchNextClicked(QString, bool, bool, bool, bool)),
+                                   this, SLOT(FindNextFromTabDialog(QString, bool, bool, bool, bool)));
+            connect(dialog->findtab, SIGNAL(notifyCountClicked(bool,bool)), this, SLOT(TotalCount(bool, bool)));
+            connect(dialog->findtab->comboBox, &QComboBox::currentTextChanged, this, &MainWindow::setSearchString);
+            dialog->show();
+        }
     }
     else
     {
@@ -974,69 +1115,76 @@ void MainWindow::FindAndReplace()
 void MainWindow::FindNextFromTabDialog(QString searchString, bool matchWholeWord, bool matchUpperLower, bool SearchLoop, bool searchDirection)
 {
     qDebug()<<"MainWindow::FindNextFromTabDialog()";
-    if(matchWholeWord && matchUpperLower && searchDirection)
+    if(GetActiveMdiWindow())
     {
-        qDebug()<<"matchWholeWord && matchUpperLower && searchDirection";
-        GetActiveMdiWindow()->FindNext(searchString,
-                                       QTextDocument::FindWholeWords|QTextDocument::FindCaseSensitively|QTextDocument::FindBackward,
-                                       SearchLoop,
-                                       searchDirection);
-    }
-    else if(matchWholeWord && matchUpperLower)
-    {
-        qDebug()<<"matchWholeWord && matchUpperLower";
-        GetActiveMdiWindow()->FindNext(searchString,
-                                       QTextDocument::FindWholeWords|QTextDocument::FindCaseSensitively,
-                                       SearchLoop,
-                                       searchDirection);
-    }
-    else if(matchWholeWord && searchDirection)
-    {
-        qDebug()<<"matchWholeWord && searchDirection";
-        GetActiveMdiWindow()->FindNext(searchString,
-                                       QTextDocument::FindWholeWords|QTextDocument::FindBackward,
-                                       SearchLoop,
-                                       searchDirection);
-    }
-    else if(matchUpperLower && searchDirection)
-    {
-        qDebug()<<"matchUpperLower && searchDirection";
-        GetActiveMdiWindow()->FindNext(searchString,
-                                       QTextDocument::FindCaseSensitively|QTextDocument::FindBackward,
-                                       SearchLoop,
-                                       searchDirection);
-    }
-    else if(matchUpperLower)
-    {
-        qDebug()<<"matchUpperLower";
-        GetActiveMdiWindow()->FindNext(searchString,
-                                       QTextDocument::FindCaseSensitively,
-                                       SearchLoop,
-                                       searchDirection);
-    }
-    else if(matchWholeWord)
-    {
-        qDebug()<<"matchWholeWord";
-        GetActiveMdiWindow()->FindNext(searchString,
-                                       QTextDocument::FindWholeWords,
-                                       SearchLoop,
-                                       searchDirection);
-    }
-    else if(searchDirection)
-    {
-        qDebug()<<"searchDirection";
-        GetActiveMdiWindow()->FindNext(searchString,
-                                       QTextDocument::FindBackward,
-                                       SearchLoop,
-                                       searchDirection);
+        if(matchWholeWord && matchUpperLower && searchDirection)
+        {
+            qDebug()<<"matchWholeWord && matchUpperLower && searchDirection";
+            GetActiveMdiWindow()->FindNext(searchString,
+                                           QTextDocument::FindWholeWords|QTextDocument::FindCaseSensitively|QTextDocument::FindBackward,
+                                           SearchLoop,
+                                           searchDirection);
+        }
+        else if(matchWholeWord && matchUpperLower)
+        {
+            qDebug()<<"matchWholeWord && matchUpperLower";
+            GetActiveMdiWindow()->FindNext(searchString,
+                                           QTextDocument::FindWholeWords|QTextDocument::FindCaseSensitively,
+                                           SearchLoop,
+                                           searchDirection);
+        }
+        else if(matchWholeWord && searchDirection)
+        {
+            qDebug()<<"matchWholeWord && searchDirection";
+            GetActiveMdiWindow()->FindNext(searchString,
+                                           QTextDocument::FindWholeWords|QTextDocument::FindBackward,
+                                           SearchLoop,
+                                           searchDirection);
+        }
+        else if(matchUpperLower && searchDirection)
+        {
+            qDebug()<<"matchUpperLower && searchDirection";
+            GetActiveMdiWindow()->FindNext(searchString,
+                                           QTextDocument::FindCaseSensitively|QTextDocument::FindBackward,
+                                           SearchLoop,
+                                           searchDirection);
+        }
+        else if(matchUpperLower)
+        {
+            qDebug()<<"matchUpperLower";
+            GetActiveMdiWindow()->FindNext(searchString,
+                                           QTextDocument::FindCaseSensitively,
+                                           SearchLoop,
+                                           searchDirection);
+        }
+        else if(matchWholeWord)
+        {
+            qDebug()<<"matchWholeWord";
+            GetActiveMdiWindow()->FindNext(searchString,
+                                           QTextDocument::FindWholeWords,
+                                           SearchLoop,
+                                           searchDirection);
+        }
+        else if(searchDirection)
+        {
+            qDebug()<<"searchDirection";
+            GetActiveMdiWindow()->FindNext(searchString,
+                                           QTextDocument::FindBackward,
+                                           SearchLoop,
+                                           searchDirection);
+        }
+        else
+        {
+            qDebug()<<"default search";
+            GetActiveMdiWindow()->FindNext(searchString,
+                                           QTextDocument::FindWholeWords,
+                                           SearchLoop,
+                                           searchDirection);
+        }
     }
     else
     {
-        qDebug()<<"Just search";
-        GetActiveMdiWindow()->FindNext(searchString,
-                                       QTextDocument::FindWholeWords,
-                                       SearchLoop,
-                                       searchDirection);
+        QMessageBox::warning(this, "Error", "No Active Document found");
     }
 }
 
@@ -1051,7 +1199,14 @@ void MainWindow::FindNext()
     }
     else if(!searchString.isEmpty())
     {
-        GetActiveMdiWindow()->FindNext(searchString, QTextDocument::FindWholeWords, true, false);
+        if(GetActiveMdiWindow())
+        {
+            GetActiveMdiWindow()->FindNext(searchString, QTextDocument::FindWholeWords, true, false);
+        }
+        else
+        {
+            QMessageBox::warning(this, "Error", "No Active Document found");
+        }
     }
 }
 
@@ -1065,7 +1220,14 @@ void MainWindow::MainWindow::FindPrev()
     }
     else if(!searchString.isEmpty())
     {
-        GetActiveMdiWindow()->FindNext(searchString, QTextDocument::FindBackward, true, true);
+        if(GetActiveMdiWindow())
+        {
+            GetActiveMdiWindow()->FindNext(searchString, QTextDocument::FindBackward, true, true);
+        }
+        else
+        {
+            QMessageBox::warning(this, "Error", "No Active Document found");
+        }
     }
 }
 
@@ -1137,26 +1299,40 @@ void MainWindow::ColumnLocate()
     dialog->setWindowTitle(tr("Locate Column No"));
     dialog->show();
 
-    QTextCursor cursor = GetActiveMdiWindow()->textCursor();
-    int currentBlockNo = cursor.blockNumber();
-    int lastBlockNo = GetActiveMdiWindow()->textDocument->blockCount();
-    currentPositionValue->setText(QString(currentBlockNo));
-    stopPositionValue->setText(QString(lastBlockNo));
+    if(GetActiveMdiWindow())
+    {
+        QTextCursor cursor = GetActiveMdiWindow()->textCursor();
+        int currentBlockNo = cursor.blockNumber();
+        int lastBlockNo = GetActiveMdiWindow()->textDocument->blockCount();
+        currentPositionValue->setText(QString(currentBlockNo));
+        stopPositionValue->setText(QString(lastBlockNo));
+    }
+    else
+    {
+        QMessageBox::warning(this, "Error", "No Active Document found");
+    }
 }
 
 void MainWindow::TotalCount(bool matchWholeWord, bool matchCaseSencitive)
 {
-    if(matchWholeWord && matchCaseSencitive)
+    if(GetActiveMdiWindow())
     {
-        GetActiveMdiWindow()->GetTotalCount(QTextDocument::FindWholeWords|QTextDocument::FindCaseSensitively);
-    }
-    else if(matchCaseSencitive)
-    {
-        GetActiveMdiWindow()->GetTotalCount(QTextDocument::FindCaseSensitively);
+        if(matchWholeWord && matchCaseSencitive)
+        {
+            GetActiveMdiWindow()->GetTotalCount(QTextDocument::FindWholeWords|QTextDocument::FindCaseSensitively);
+        }
+        else if(matchCaseSencitive)
+        {
+            GetActiveMdiWindow()->GetTotalCount(QTextDocument::FindCaseSensitively);
+        }
+        else
+        {
+            GetActiveMdiWindow()->GetTotalCount(QTextDocument::FindWholeWords);
+        }
     }
     else
     {
-        GetActiveMdiWindow()->GetTotalCount(QTextDocument::FindWholeWords);
+        QMessageBox::warning(this, "Error", "No Active Document found");
     }
 }
 
@@ -1211,13 +1387,21 @@ void MainWindow::setDockWidgetStatus()
 void MainWindow::SaveCopyText()
 {
     qDebug()<<"MainWindow::SaveCopyText()";
-    GetActiveMdiWindow()->CopySaveAs();
+    if(GetActiveMdiWindow())
+    {
+        GetActiveMdiWindow()->CopySaveAs();
+    }
 }
 
 MyMdi *MainWindow::FindChildSubWindow(QString filename)
 {
     qDebug()<<"MainWindow::FindChildSubWindow()";
-    return mdiArea.findChild<MyMdi *>(filename);
+    foreach (QMdiSubWindow *window, mdiArea.subWindowList()) {
+        MyMdi *mdiChild = qobject_cast<MyMdi *>(window->widget());
+        if (mdiChild->getFilePath() == filename)
+            return mdiChild;
+    }
+    return 0;
 }
 
 void MainWindow::closeEvent(QCloseEvent *event)
